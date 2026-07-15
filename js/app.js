@@ -323,6 +323,16 @@
     if (internalLink) scrollPositions.set(location.hash, window.scrollY);
     var rowLink = event.target.closest("[data-target-link]");
     if (rowLink) { var textSelection = window.getSelection ? window.getSelection() : null; if (textSelection && !textSelection.isCollapsed) return; event.preventDefault(); var href = rowLink.dataset.targetLink; if (href && href !== "#") { scrollPositions.set(location.hash, window.scrollY); location.hash = href.slice(1); } return; }
+    var filterReset = event.target.closest("[data-filter-reset]");
+    if (filterReset) {
+      event.preventDefault();
+      var filterPrefix = filterReset.dataset.filterReset;
+      byId(filterPrefix + "-search").value = "";
+      ["status-filter", "category-filter", "panel-filter"].forEach(function (key) { var host = byId(filterPrefix + "-" + key); host.querySelectorAll("input:checked").forEach(function (input) { input.checked = false; }); host.removeAttribute("open"); updateFilterSummary(host); });
+      byId(filterPrefix + "-isoform-filter").checked = false;
+      if (filterPrefix === "target") renderTargets(); else renderSelectedTargets();
+      return;
+    }
     var allRelated = event.target.closest("[data-show-related]");
     if (allRelated) { allRelated.hidden = true; allRelated.nextElementSibling.hidden = false; }
     var check = event.target.closest("[data-selection-check]");
