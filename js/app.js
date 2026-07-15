@@ -98,6 +98,11 @@
     return '<span class="status status--' + state.replace("not_registered", "unregistered") + '"><b aria-hidden="true">' + C.statusSymbol(value, registered) + '</b> ' + E(C.statusLabel(value, registered)) + '</span>';
   }
   function panelLink(panel) { return '<a class="chip-link" href="' + panelHref(panel.panel_id) + '">' + E(panel.display_name_ja || panel.short_name || panel.panel_name) + '</a>'; }
+  function parentPanelLink(panel) {
+    var parent = panel.parent_panel_id ? C.panelById(panel.parent_panel_id) : null;
+    if (!parent) return '';
+    return '<div class="panel-parent-context"><span>大分類</span>' + panelLink(parent) + '</div>';
+  }
   function targetLink(target) { return '<a class="related-target-row" href="' + targetHref(target.target_id) + '"><strong>' + E(target.gene_symbol) + '</strong>' + statusBadge(target.measurement_status, true) + '</a>'; }
 
   function panelCounts(panel) {
@@ -226,7 +231,7 @@
     document.querySelectorAll("[data-status-filter]").forEach(function (button) { var status = button.dataset.statusFilter; button.setAttribute("aria-pressed", String(!!visibleStatuses[status])); });
     var bulk = document.querySelector("[data-panel-select]"), exclude = document.querySelector("[data-panel-exclude-unregistered]");
     if (bulk) bulk.textContent = "表示されているものを追加";
-    if (exclude) exclude.textContent = "測定例無しのたんぱくを除外";
+    if (exclude) exclude.textContent = "測定例なしのタンパク質を除外";
   }
   function renderPanelDetail(panel) {
     showView("panel-detail-view");
@@ -234,7 +239,7 @@
     byId("panel-detail-purpose").textContent = panel.purpose || "";
     byId("panel-detail-description").textContent = panel.description || "";
     byId("panel-status-counts").innerHTML = countHtml(panelCounts(panel));
-    byId("panel-relations").innerHTML = "";
+    byId("panel-relations").innerHTML = parentPanelLink(panel);
     renderPanelTargets(panel);
     var mapHost = byId("panel-map-host");
     mapHost.innerHTML = '<p class="muted">経路図を準備しています。</p>';
