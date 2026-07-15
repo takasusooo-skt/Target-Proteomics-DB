@@ -72,9 +72,9 @@
 
     <section id="panel-detail-view" class="view detail-view" hidden>
       <a class="back-link" href="#panels">← 経路・機能一覧</a>
-      <div class="detail-hero simple-detail-hero"><div><p class="eyebrow">経路・機能</p><h1 id="panel-detail-title">-</h1><p id="panel-detail-purpose" class="detail-subtitle">-</p></div></div>
+      <div class="detail-hero simple-detail-hero panel-detail-hero"><div class="panel-hero-title"><p class="eyebrow">経路・機能</p><h1 id="panel-detail-title">-</h1></div><div class="panel-hero-summary"><p id="panel-detail-purpose" class="detail-subtitle">-</p><p id="panel-detail-description" class="panel-hero-description"></p><div id="panel-status-counts" class="status-counts"></div></div></div>
       <div class="detail-main-simple">
-        <section class="detail-section"><p id="panel-detail-description" class="lead-note"></p><div id="panel-status-counts" class="status-counts"></div><div id="panel-relations" class="chip-list"></div></section>
+        <section class="detail-section"><div id="panel-relations" class="chip-list"></div></section>
         <section id="panel-map-host" class="detail-section panel-map-section"><p class="muted">経路図を準備しています。</p></section>
         <section class="detail-section"><div class="section-heading-row"><h2>対象タンパク質</h2><div class="status-visibility-filters" role="group" aria-label="測定状態の表示切替"><button type="button" class="visibility-toggle" data-status-filter="measured" aria-pressed="true">● 測定実績あり</button><button type="button" class="visibility-toggle" data-status-filter="candidate" aria-pressed="true">▲ 測定候補</button><button type="button" class="visibility-toggle" data-status-filter="not_registered" aria-pressed="true">□ 測定例なし</button></div></div><div class="selection-bulk-actions"><button type="button" class="small-action" data-panel-select>表示されているものを追加</button><button type="button" class="small-action" data-panel-exclude-unregistered>測定例なしのタンパク質を除外</button></div><p class="section-note">表示中の状態に該当するタンパク質を追加できます。</p><div id="panel-target-list" class="panel-target-list"></div></section>
       </div>
