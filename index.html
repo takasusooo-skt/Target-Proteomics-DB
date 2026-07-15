@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Targeted proteomics measurement candidate catalog">
+  <title>Targeted Proteomics Catalog</title>
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/catalog-simple.css">
+  <link rel="stylesheet" href="./css/glycolysis-compact.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#targets"><span class="brand-mark">TP</span><span><strong>Targeted Proteomics</strong><small>公開プロテオミクスカタログ</small></span></a>
+      <nav class="main-nav public-tabs" aria-label="公開カタログの入口"><a href="#targets" data-public-tab="targets">タンパク質から探す</a><a href="#panels" data-public-tab="panels">経路・機能から探す</a></nav>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <aside class="selection-bar" aria-label="選択中の測定対象">
+      <button type="button" id="selection-toggle" class="selection-summary" aria-expanded="false">選択中の測定対象：0</button><a class="selection-page-link" href="#selected">選択一覧</a>
+      <div id="selection-drawer" class="selection-drawer" hidden>
+        <div class="selection-drawer-header"><strong>選択中の測定対象</strong><a class="selection-drawer-link" href="#selected">選択一覧</a><button type="button" id="selection-close" aria-label="選択欄を閉じる">×</button></div>
+        <div id="selection-items" class="selection-items"><p class="muted">まだ選択されていません。</p></div>
+        <div class="selection-actions"><button type="button" id="selection-clear">すべて解除</button><button type="button" id="selection-json" class="selection-primary">JSON出力</button><button type="button" id="selection-csv" class="selection-primary">CSV出力</button></div>
+      </div>
+    </aside>
+    <section id="targets-view" class="view">
+      <div class="simple-hero"><div><p class="eyebrow">公開カタログ</p><h1>タンパク質から探す</h1><p>測定状態、関連する経路・機能、Isoform情報を確認できます。</p></div><div class="stat-strip"><div><strong id="target-total">-</strong><span>タンパク質</span></div><div><strong id="panel-total">-</strong><span>グループ</span></div></div></div>
+      <div class="filter-panel">
+        <label class="search-box"><span>⌕</span><input id="target-search" type="search" placeholder="Gene symbol / Protein name / UniProt / Isoformを検索"></label>
+        <select id="target-status-filter" aria-label="測定状態"><option value="">すべての測定状態</option><option value="measured">● 測定実績あり</option><option value="candidate">▲ 測定候補</option><option value="not_registered">□ 測定例なし</option></select>
+        <select id="target-category-filter" aria-label="主要カテゴリ"><option value="">すべての主要カテゴリ</option></select>
+        <select id="target-panel-filter" aria-label="経路・機能"><option value="">すべての経路・機能</option></select>
+        <label class="check-filter"><input id="target-isoform-filter" type="checkbox"> Isoform情報あり</label>
+        <span id="target-result-count" class="result-count"></span>
+      </div>
+      <div class="target-table" role="table" aria-label="タンパク質一覧"><div class="target-table-head" role="row"><span>選択</span><span>測定状態</span><span>Gene symbol</span><span>Protein name</span><span>Isoform</span><span>経路・機能</span></div><div id="target-grid" class="target-table-body"></div></div>
+    </section>
+
+    <section id="selected-targets-view" class="view" hidden>
+      <div class="simple-hero"><div><p class="eyebrow">選択した測定対象</p><h1>選択したタンパク質</h1><p>選択中のタンパク質を、タンパク質一覧と同じ形式で確認・絞り込みできます。</p></div></div>
+      <div class="filter-panel">
+        <label class="search-box"><span>⌕</span><input id="selected-search" type="search" placeholder="Gene symbol / Protein name / UniProt / Isoformを検索"></label>
+        <select id="selected-status-filter" aria-label="測定状態"><option value="">すべての測定状態</option><option value="measured">● 測定実績あり</option><option value="candidate">▲ 測定候補</option><option value="not_registered">□ 測定例なし</option></select>
+        <select id="selected-category-filter" aria-label="主要カテゴリ"><option value="">すべての主要カテゴリ</option></select>
+        <select id="selected-panel-filter" aria-label="経路・機能"><option value="">すべての経路・機能</option></select>
+        <label class="check-filter"><input id="selected-isoform-filter" type="checkbox"> Isoform情報あり</label>
+        <span id="selected-result-count" class="result-count"></span>
+      </div>
+      <div class="target-table" role="table" aria-label="選択したタンパク質一覧"><div class="target-table-head" role="row"><span>選択</span><span>測定状態</span><span>Gene symbol</span><span>Protein name</span><span>Isoform</span><span>経路・機能</span></div><div id="selected-grid" class="target-table-body"></div></div>
+    </section>
+
+    <section id="panels-view" class="view" hidden>
+      <div class="simple-hero"><div><p class="eyebrow">公開カタログ</p><h1>経路・機能から探す</h1><p>経路・機能別グループから、測定実績、候補、測定例のないタンパク質をまとめて確認できます。</p></div></div>
+      <div class="filter-panel"><label class="search-box"><span>⌕</span><input id="panel-search" type="search" placeholder="経路・機能名 / 目的を検索"></label><span id="panel-result-count" class="result-count"></span></div>
+      <div id="panel-groups"></div>
+    </section>
+
+    <section id="target-detail-view" class="view detail-view" hidden>
+      <a class="back-link" href="#targets">← タンパク質一覧</a>
+      <div class="detail-hero simple-detail-hero"><div><p class="eyebrow">タンパク質</p><h1 id="target-detail-symbol">-</h1><p id="target-detail-name" class="detail-subtitle">-</p><div id="target-detail-status"></div><button type="button" id="target-selection-toggle" class="small-action target-selection-action" aria-pressed="false">□ 測定対象に含める</button></div></div>
+      <div class="detail-main-simple">
+        <section class="detail-section"><p id="target-detail-summary" class="lead-note"></p><dl id="target-detail-fields" class="detail-fields"></dl><div><div id="target-location" class="chip-list"></div></div></section>
+        <section id="target-isoform-section" class="detail-section" hidden><h2>Isoform</h2><div id="target-isoforms" class="isoform-list"></div></section>
+        <section class="detail-section"><h2>関連するタンパク質</h2><div id="target-related" class="chip-list"></div></section>
+        <details class="detail-section"><summary>外部データベース</summary><div id="target-detail-links" class="resource-links detail-fold-body"></div></details>
+        <details id="target-note-section" class="detail-section" hidden><summary>詳細説明</summary><p id="target-detail-note" class="annotation detail-fold-body"></p></details>
+      </div>
+    </section>
+
+    <section id="panel-detail-view" class="view detail-view" hidden>
+      <a class="back-link" href="#panels">← 経路・機能一覧</a>
+      <div class="detail-hero simple-detail-hero"><div><p class="eyebrow">経路・機能</p><h1 id="panel-detail-title">-</h1><p id="panel-detail-purpose" class="detail-subtitle">-</p></div></div>
+      <div class="detail-main-simple">
+        <section class="detail-section"><p id="panel-detail-description" class="lead-note"></p><div id="panel-status-counts" class="status-counts"></div><div id="panel-relations" class="chip-list"></div></section>
+        <section id="panel-map-host" class="detail-section panel-map-section"><p class="muted">経路図を準備しています。</p></section>
+        <section class="detail-section"><div class="section-heading-row"><h2>含まれるタンパク質</h2><div class="status-visibility-filters" role="group" aria-label="測定状態の表示切替"><button type="button" class="visibility-toggle" data-status-filter="measured" aria-pressed="true">● 測定実績あり</button><button type="button" class="visibility-toggle" data-status-filter="candidate" aria-pressed="true">▲ 測定候補</button><button type="button" class="visibility-toggle" data-status-filter="not_registered" aria-pressed="true">□ 測定例なし</button></div></div><div class="selection-bulk-actions"><button type="button" class="small-action" data-panel-select>表示されているものを追加</button><button type="button" class="small-action" data-panel-exclude-unregistered>測定例無しのたんぱくを除外</button></div><p class="section-note">表示中の状態に該当するタンパク質を追加できます。測定例無しは個別に選択でき、除外ボタンでこの経路からの選択だけを外せます。</p><div id="panel-target-list" class="panel-target-list"></div></section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>Targeted Proteomics Catalog</span><span>公開情報を閲覧用に簡略表示</span></footer>
+  <script src="./data/catalog_data.js" defer></script>
+  <script src="./js/core.js" defer></script>
+  <script src="./js/app.js" defer></script>
+  <script src="./js/panel-map-ui.js" defer></script>
+</body>
+</html>

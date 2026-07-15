@@ -1,0 +1,22 @@
+*.xlsx
+*.xls
+*.xlsm
+*.sky
+*.skyd
+*.wiff
+*.raw
+private/
+internal/
+cache/
+tmp/
+
+# GitHub Pages release excludes local build inputs and generated caches.
+/source_data/
+/scripts/
+/data/reactome/
+/data/reactome_pathways/
+/data/panel_maps/
+/data/public_*.csv
+/data/panel_map_index.js
+/data/reactome_*.js
+

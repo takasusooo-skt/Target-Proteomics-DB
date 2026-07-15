@@ -1,0 +1,26 @@
+/* Compact public glycolysis view: metabolites remain the main vertical line. */
+.pathway-flow { max-width: 460px; margin: 8px auto; }
+.pathway-step { gap: 1px; }
+.pathway-flow .compound { min-width: 170px; max-width: 260px; padding: 2px 7px; border-radius: 6px; font-size: 12px; line-height: 1.15; }
+.pathway-flow .reaction-block { width: 170px; min-height: calc(14px + var(--enzyme-count, 1) * 14px); }
+.pathway-flow .arrow-line::after { border-left-width: 5px; border-right-width: 5px; border-top-width: 8px; }
+.pathway-flow .enzyme-list { left: calc(50% + 13px); gap: 1px; }
+.pathway-flow .enzyme { padding: 1px 5px; font-size: 11px; line-height: 1.1; }
+.pathway-flow .branch-metabolites { gap: 3px; }
+.pathway-flow .branch-metabolites .compound { font-size: 11px; }
+.pathway-flow .reaction-block--branch { min-height: calc(14px + var(--enzyme-count, 1) * 14px); }
+
+/* Apply the same compact density to non-glycolysis pathway/module views. */
+.compact-map-flow { max-width: 460px; margin: 8px auto; }
+.compact-map-step { padding: 1px 0; }
+.compact-map-node { padding: 4px 7px; border-radius: 6px; line-height: 1.15; }
+.compact-map-node .compact-node-main { gap: 5px; }
+.compact-map-node strong { font-size: 12px; }
+.map-node--module { max-width: 270px; }
+.map-node--metabolite { max-width: 220px; }
+.enzyme-row { gap: 3px; margin-top: 3px; }
+.enzyme-row .compact-map-node { width: min(180px, 100%); }
+.flow-arrow { position: relative; width: 2px; height: clamp(5px, calc(3px + var(--protein-count, 1) * 2px), 15px); margin: 0 auto; background: #7b93a6; font-size: 0; line-height: 1; }
+.flow-arrow::after { content: ""; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid #7b93a6; }
+
+.pathway-flow--cycle .cycle-return { margin-top: 2px; color: #617184; font-size: 11px; line-height: 1.1; }
