@@ -239,7 +239,9 @@
     byId("panel-detail-purpose").textContent = panel.purpose || "";
     byId("panel-detail-description").textContent = panel.description || "";
     byId("panel-status-counts").innerHTML = countHtml(panelCounts(panel));
-    byId("panel-relations").innerHTML = parentPanelLink(panel);
+    var panelRelations = byId("panel-relations"), parentLink = parentPanelLink(panel);
+    panelRelations.innerHTML = parentLink;
+    panelRelations.parentElement.hidden = !parentLink;
     renderPanelTargets(panel);
     var mapHost = byId("panel-map-host");
     mapHost.innerHTML = '<p class="muted">経路図を準備しています。</p>';
