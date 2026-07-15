@@ -287,6 +287,8 @@
     renderSelection(false);
   });
   document.addEventListener("click", function (event) {
+    var activeFilter = event.target.closest(".multi-filter");
+    document.querySelectorAll(".multi-filter[open]").forEach(function (filter) { if (filter !== activeFilter) filter.removeAttribute("open"); });
     var directCheck = event.target.closest("[data-selection-check]");
     if (directCheck && event.shiftKey && !directCheck.disabled) {
       var directTable = directCheck.closest(".target-table");
