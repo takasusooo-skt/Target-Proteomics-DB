@@ -30,9 +30,9 @@
       <div class="simple-hero"><div><p class="eyebrow">公開カタログ</p><h1>タンパク質から探す</h1><p>測定状態、関連する経路・機能、Isoform情報を確認できます。</p></div><div class="stat-strip"><div><strong id="target-total">-</strong><span>タンパク質</span></div><div><strong id="panel-total">-</strong><span>グループ</span></div></div></div>
       <div class="filter-panel">
         <label class="search-box"><span>⌕</span><input id="target-search" type="search" placeholder="Gene symbol / Protein name / UniProt / Isoformを検索"></label>
-        <select id="target-status-filter" aria-label="測定状態"><option value="">すべての測定状態</option><option value="measured">● 測定実績あり</option><option value="candidate">▲ 測定候補</option><option value="not_registered">□ 測定例なし</option></select>
-        <select id="target-category-filter" aria-label="主要カテゴリ"><option value="">すべての主要カテゴリ</option></select>
-        <select id="target-panel-filter" aria-label="経路・機能"><option value="">すべての経路・機能</option></select>
+        <details id="target-status-filter" class="multi-filter"><summary><span data-filter-summary>測定状態：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
+        <details id="target-category-filter" class="multi-filter"><summary><span data-filter-summary>カテゴリ：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
+        <details id="target-panel-filter" class="multi-filter"><summary><span data-filter-summary>経路・機能：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
         <label class="check-filter"><input id="target-isoform-filter" type="checkbox"> Isoform情報あり</label>
         <span id="target-result-count" class="result-count"></span>
       </div>
@@ -43,9 +43,9 @@
       <div class="simple-hero"><div><p class="eyebrow">選択した測定対象</p><h1>選択したタンパク質</h1><p>選択中のタンパク質を、タンパク質一覧と同じ形式で確認・絞り込みできます。</p></div></div>
       <div class="filter-panel">
         <label class="search-box"><span>⌕</span><input id="selected-search" type="search" placeholder="Gene symbol / Protein name / UniProt / Isoformを検索"></label>
-        <select id="selected-status-filter" aria-label="測定状態"><option value="">すべての測定状態</option><option value="measured">● 測定実績あり</option><option value="candidate">▲ 測定候補</option><option value="not_registered">□ 測定例なし</option></select>
-        <select id="selected-category-filter" aria-label="主要カテゴリ"><option value="">すべての主要カテゴリ</option></select>
-        <select id="selected-panel-filter" aria-label="経路・機能"><option value="">すべての経路・機能</option></select>
+        <details id="selected-status-filter" class="multi-filter"><summary><span data-filter-summary>測定状態：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
+        <details id="selected-category-filter" class="multi-filter"><summary><span data-filter-summary>カテゴリ：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
+        <details id="selected-panel-filter" class="multi-filter"><summary><span data-filter-summary>経路・機能：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
         <label class="check-filter"><input id="selected-isoform-filter" type="checkbox"> Isoform情報あり</label>
         <span id="selected-result-count" class="result-count"></span>
       </div>

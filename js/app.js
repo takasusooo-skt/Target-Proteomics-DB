@@ -127,15 +127,26 @@
     var mode = { isoform_specific: "区別して測定", shared_isoforms: "区別せずに測定", canonical_reference: "代表配列として測定", not_resolved: "区別せずに測定（isoform未確定）", to_confirm: "区別方法を要確認" }[item.measurement_scope] || "測定区分を要確認";
     return mode + " · " + C.statusLabel(item.measurement_state, true);
   }
+  function filterValues(prefix, key) {
+    var host = byId(prefix + "-" + key);
+    return host ? Array.from(host.querySelectorAll("input:checked")).map(function (input) { return input.value; }) : [];
+  }
+  function updateFilterSummary(host) {
+    if (!host) return;
+    var summary = host.querySelector("[data-filter-summary]"), selectedCount = host.querySelectorAll("input:checked").length;
+    if (summary) summary.textContent = host.dataset.filterLabel + "：" + (selectedCount ? selectedCount + "件選択" : "すべて");
+  }
   function targetMatchesFor(target, prefix) {
     var query = byId(prefix + "-search").value.trim().toLowerCase();
-    var state = byId(prefix + "-status-filter").value;
-    var category = byId(prefix + "-category-filter").value;
-    var panelId = byId(prefix + "-panel-filter").value;
+    var queryTerms = query ? query.split(/\s+/).filter(Boolean) : [];
+    var states = filterValues(prefix, "status-filter");
+    var categories = filterValues(prefix, "category-filter");
+    var panelIds = filterValues(prefix, "panel-filter");
     var isoformOnly = byId(prefix + "-isoform-filter").checked;
+    var state = C.publicState(target.measurement_status, !target.virtual);
     var isoformText = isoformsForTarget(target).map(function (item) { return isoformDisplayName(item, target) + " " + (item.uniprot_isoform_name || ""); }).join(" ");
     var haystack = [target.gene_symbol, target.gene_name, target.protein_name, target.display_aliases, target.hgnc_id, target.ncbi_gene_id, target.ensembl_gene_id, target.canonical_uniprot_id, target.kegg_gene_id, target.detail_groups, target.pathway_tags, isoformText].join(" ").toLowerCase();
-    return (!query || haystack.indexOf(query) !== -1) && (!state || C.publicState(target.measurement_status, !target.virtual) === state) && (!category || target.category === category) && (!panelId || panelsForTarget(target).some(function (panel) { return panel.panel_id === panelId; })) && (!isoformOnly || isoformsForTarget(target).length > 0);
+    return (!queryTerms.length || queryTerms.every(function (term) { return haystack.indexOf(term) !== -1; })) && (!states.length || states.indexOf(state) !== -1) && (!categories.length || categories.indexOf(target.category) !== -1) && (!panelIds.length || panelsForTarget(target).some(function (panel) { return panelIds.indexOf(panel.panel_id) !== -1; })) && (!isoformOnly || isoformsForTarget(target).length > 0);
   }
   function targetMatches(target) { return targetMatchesFor(target, "target"); }
   function targetRow(target) {
@@ -247,10 +258,19 @@
     else { showView("targets-view"); renderTargets(); }
     syncTabs();
   }
+  function populateMultiFilter(id, label, options) {
+    var host = byId(id), optionsHost = host.querySelector("[data-filter-options]");
+    host.dataset.filterLabel = label;
+    optionsHost.innerHTML = options.map(function (option) { return '<label><input type="checkbox" value="' + E(option.value) + '">' + E(option.label) + '</label>'; }).join("");
+    updateFilterSummary(host);
+  }
   function populateFilters() {
-    var categories = Array.from(new Set(allTargets().map(function (target) { return target.category; }).filter(Boolean))).sort();
-    ["target-category-filter", "selected-category-filter"].forEach(function (id) { categories.forEach(function (category) { byId(id).insertAdjacentHTML("beforeend", '<option>' + E(category) + '</option>'); }); });
-    ["target-panel-filter", "selected-panel-filter"].forEach(function (id) { C.data.panels.forEach(function (panel) { byId(id).insertAdjacentHTML("beforeend", '<option value="' + E(panel.panel_id) + '">' + E(panel.display_name_ja || panel.short_name || panel.panel_name) + '</option>'); }); });
+    var statuses = [{ value: "measured", label: "● 測定実績あり" }, { value: "candidate", label: "▲ 測定候補" }, { value: "not_registered", label: "□ 測定例なし" }];
+    var categories = Array.from(new Set(allTargets().map(function (target) { return target.category; }).filter(Boolean))).sort().map(function (value) { return { value: value, label: value }; });
+    var panels = C.data.panels.map(function (panel) { return { value: panel.panel_id, label: panel.display_name_ja || panel.short_name || panel.panel_name }; });
+    ["target-status-filter", "selected-status-filter"].forEach(function (id) { populateMultiFilter(id, "測定状態", statuses); });
+    ["target-category-filter", "selected-category-filter"].forEach(function (id) { populateMultiFilter(id, "カテゴリ", categories); });
+    ["target-panel-filter", "selected-panel-filter"].forEach(function (id) { populateMultiFilter(id, "経路・機能", panels); });
   }
   document.addEventListener("change", function (event) {
     var check = event.target.closest("[data-selection-check]");
@@ -324,8 +344,12 @@
     renderSelection();
     byId("target-total").textContent = allTargets().length;
     byId("panel-total").textContent = C.data.panels.length;
-    ["target-search", "target-status-filter", "target-category-filter", "target-panel-filter", "target-isoform-filter"].forEach(function (id) { byId(id).addEventListener(id === "target-search" ? "input" : "change", renderTargets); });
-    ["selected-search", "selected-status-filter", "selected-category-filter", "selected-panel-filter", "selected-isoform-filter"].forEach(function (id) { byId(id).addEventListener(id === "selected-search" ? "input" : "change", renderSelectedTargets); });
+    byId("target-search").addEventListener("input", renderTargets);
+    ["target-status-filter", "target-category-filter", "target-panel-filter"].forEach(function (id) { byId(id).addEventListener("change", function (event) { updateFilterSummary(event.currentTarget); renderTargets(); }); });
+    byId("target-isoform-filter").addEventListener("change", renderTargets);
+    byId("selected-search").addEventListener("input", renderSelectedTargets);
+    ["selected-status-filter", "selected-category-filter", "selected-panel-filter"].forEach(function (id) { byId(id).addEventListener("change", function (event) { updateFilterSummary(event.currentTarget); renderSelectedTargets(); }); });
+    byId("selected-isoform-filter").addEventListener("change", renderSelectedTargets);
     byId("panel-search").addEventListener("input", renderPanels);
     window.addEventListener("hashchange", renderRoute);
     if (!location.hash) location.hash = "targets";
