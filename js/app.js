@@ -508,9 +508,17 @@
       return;
     }
     var internalLink = event.target.closest('a[href^="#"]');
+    var returnTopLink = event.target.closest("[data-return-top]");
     if (internalLink) {
       var sourceRoute = C.parseHash(location.hash);
-      if (sourceRoute.view !== "target") rememberCurrentScroll();
+      if (sourceRoute.view !== "target" && !returnTopLink) rememberCurrentScroll();
+      if (returnTopLink) {
+        scrollPositions.set(internalLink.getAttribute("href"), 0);
+        try {
+          var returnState = JSON.parse(sessionStorage.getItem("catalogReturnState") || "null");
+          if (returnState) { returnState.restore_pending = false; sessionStorage.setItem("catalogReturnState", JSON.stringify(returnState)); }
+        } catch (error) { /* storage may be unavailable */ }
+      }
     }
     var rowLink = event.target.closest("[data-target-link]");
     if (rowLink) { var textSelection = window.getSelection ? window.getSelection() : null; if (textSelection && !textSelection.isCollapsed) return; event.preventDefault(); var href = rowLink.dataset.targetLink; if (href && href !== "#") { rememberCurrentScroll(); location.hash = href.slice(1); } return; }
