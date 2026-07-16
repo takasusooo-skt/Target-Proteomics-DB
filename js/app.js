@@ -280,7 +280,7 @@
 
     byId("panel-result-count").textContent = panels.length + " / " + C.data.panels.length;
     var topLevel = C.data.panels.filter(function (panel) { return panel.catalog_group_type === "domain"; });
-    var topBlock = topLevel.length ? '<section class="panel-group panel-group--top"><h2>大分類</h2><div class="catalog-grid catalog-grid--panels">' + topLevel.map(panelCard).join("") + '</div></section>' : '';
+    var topBlock = topLevel.length ? '<section id="panel-domain-groups" class="panel-group panel-group--top"><h2>大分類</h2><div class="catalog-grid catalog-grid--panels">' + topLevel.map(panelCard).join("") + '</div></section>' : '';
     var childBlocks = Array.from(groups.entries()).map(function (entry) {
       var groupName = entry[0];
       var children = entry[1];
@@ -539,6 +539,8 @@
     if (exclude) { event.preventDefault(); var excludeRoute = C.parseHash(location.hash), excludePanel = excludeRoute.view === "panel" ? C.panelById(excludeRoute.id) : null; if (excludePanel) { panelRows(excludePanel).forEach(function (row) { if (!row.target || row.target.measurement_state !== "not_registered") return; var item = selectedTargets.get(row.target.target_id); if (!item) return; item.source_group_ids = (item.source_group_ids || []).filter(function (id) { return id !== excludePanel.panel_id; }); if (!item.source_group_ids.length) removeSelection(row.target.target_id); }); renderPanelTargets(excludePanel); renderSelection(); } return; }
     var selectionToggle = event.target.closest("#selection-toggle");
     if (selectionToggle) { var drawer = byId("selection-drawer"); drawer.hidden = !drawer.hidden; selectionToggle.setAttribute("aria-expanded", String(!drawer.hidden)); return; }
+    var scrollTo = event.target.closest("[data-scroll-to]");
+    if (scrollTo) { event.preventDefault(); var destination = byId(scrollTo.dataset.scrollTo); if (destination) destination.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (event.target.closest("#selection-close")) { byId("selection-drawer").hidden = true; return; }
     if (event.target.closest("#selection-clear")) { selectedTargets.clear(); renderSelection(); return; }
     if (event.target.closest("#selection-json") || event.target.closest("#selection-page-json")) { downloadSelection("json"); return; }
