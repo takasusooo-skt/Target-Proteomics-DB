@@ -281,13 +281,14 @@
     byId("panel-result-count").textContent = panels.length + " / " + C.data.panels.length;
     var topLevel = C.data.panels.filter(function (panel) { return panel.catalog_group_type === "domain"; });
     var jumpHost = byId("panel-domain-jumps");
-    if (jumpHost) jumpHost.innerHTML = topLevel.map(function (panel) { return '<button type="button" class="small-action" data-scroll-to="panel-domain-' + E(panel.panel_id) + '">' + E(panel.display_name_ja) + '</button>'; }).join("");
+    if (jumpHost) jumpHost.innerHTML = topLevel.map(function (panel) { return '<button type="button" class="small-action" data-scroll-to="panel-domain-children-' + E(panel.panel_id) + '">' + E(panel.display_name_ja) + '</button>'; }).join("");
     var topBlock = topLevel.length ? '<section class="panel-group panel-group--top"><h2>大分類</h2><div id="panel-domain-items" class="catalog-grid catalog-grid--panels">' + topLevel.map(function (panel) { return panelCard(panel, "panel-domain-" + panel.panel_id); }).join("") + '</div></section>' : '';
     var childBlocks = Array.from(groups.entries()).map(function (entry) {
       var groupName = entry[0];
       var children = entry[1];
       if (groupName === "その他" && !children.length) return '';
-      return children.length ? '<section class="panel-group"><h2>' + E(groupName) + '</h2><div class="catalog-grid catalog-grid--panels">' + children.map(panelCard).join("") + '</div></section>' : '';
+      var parentId = children.length ? children[0].parent_panel_id : "";
+      return children.length ? '<section' + (parentId ? ' id="panel-domain-children-' + E(parentId) + '"' : '') + ' class="panel-group"><h2>' + E(groupName) + '</h2><div class="catalog-grid catalog-grid--panels">' + children.map(panelCard).join("") + '</div></section>' : '';
     }).join("");
     byId("panel-groups").innerHTML = topBlock + childBlocks || '<p class="empty-state">条件に一致する経路・機能がありません。</p>';
   }
