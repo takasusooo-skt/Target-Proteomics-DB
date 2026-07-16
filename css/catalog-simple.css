@@ -61,6 +61,12 @@ body{background:#f7f9fb;color:#172235}.page-shell{max-width:1120px}.header-meta{
 
 .selection-drawer-link{margin-left:auto;margin-right:12px;color:#dce9f2;font-size:11px;text-decoration:none}.selection-drawer-link:hover{text-decoration:underline}
 
+/* Shared public assay groups are shown in the same searchable protein list. */
+.target-table-head{grid-template-columns:var(--target-col-select,48px) var(--target-col-status,110px) var(--target-col-gene,105px) var(--target-col-entry,170px) var(--target-col-protein,minmax(220px,1.5fr)) var(--target-col-isoform,100px) var(--target-col-pathway,minmax(180px,1.2fr)) var(--target-col-shared,minmax(160px,1fr))}
+.target-row-link{grid-template-columns:var(--target-col-status,110px) var(--target-col-gene,105px) var(--target-col-entry,170px) var(--target-col-protein,minmax(220px,1.5fr)) var(--target-col-isoform,100px) var(--target-col-pathway,minmax(180px,1.2fr)) var(--target-col-shared,minmax(160px,1fr))}
+.target-shared-cell{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:10px}.shared-assay-badge{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 6px;border:1px solid #b9ccdc;border-radius:999px;background:#f2f8fc;color:var(--blue)}
+@media(max-width:800px){.target-row-link .target-shared-cell{grid-column:1/-1;white-space:normal}.target-table-link .target-shared-cell{grid-column:1/-1}}
+
 /* The selection index is a visible action button in the fixed cart. */
 .selection-page-link{display:inline-block;margin-left:7px;padding:8px 11px;border:1px solid #b9ccdc;border-radius:8px;background:var(--blue);color:#fff;font-size:11px;font-weight:750;line-height:1.2;text-decoration:none;box-shadow:0 5px 16px rgba(18,40,68,.16)}.selection-page-link:hover{background:var(--navy);color:#fff;text-decoration:none}
 

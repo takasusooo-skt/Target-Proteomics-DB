@@ -31,7 +31,9 @@
     pathwayEdges: hydrate(tables.pathwayEdges),
     panelMaps: hydrate(tables.panelMaps),
     panelMapNodes: hydrate(tables.panelMapNodes),
-    panelMapEdges: hydrate(tables.panelMapEdges)
+    panelMapEdges: hydrate(tables.panelMapEdges),
+    assayGroups: hydrate(tables.assayGroups),
+    assayGroupMembers: hydrate(tables.assayGroupMembers)
   };
 
   var targetIndex = new Map(data.targets.map(function (row) { return [row.target_id, row]; }));
@@ -44,6 +46,7 @@
   var mapByPanel = new Map();
   var mapNodesByMap = new Map();
   var mapEdgesByMap = new Map();
+  var assayGroupsByTarget = new Map();
 
   function append(index, key, value) {
     if (!index.has(key)) index.set(key, []);
@@ -60,6 +63,11 @@
   data.panelMaps.forEach(function (row) { mapByPanel.set(row.panel_id, row); });
   data.panelMapNodes.forEach(function (row) { append(mapNodesByMap, row.map_id, row); });
   data.panelMapEdges.forEach(function (row) { append(mapEdgesByMap, row.map_id, row); });
+  var assayGroupIndex = new Map(data.assayGroups.map(function (row) { return [row.assay_group_id, row]; }));
+  data.assayGroupMembers.forEach(function (row) {
+    var group = assayGroupIndex.get(row.assay_group_id);
+    if (group) append(assayGroupsByTarget, row.target_id, Object.assign({}, group, { member_role: row.member_role }));
+  });
 
   function sortByOrder(a, b) {
     return Number(a.display_order || 0) - Number(b.display_order || 0);
@@ -96,6 +104,7 @@
     if (!meta) return null;
     return { meta: meta, nodes: (mapNodesByMap.get(meta.map_id) || []).slice().sort(sortByOrder), edges: (mapEdgesByMap.get(meta.map_id) || []).slice().sort(sortByOrder) };
   }
+  function sharedAssayGroups(id) { return (assayGroupsByTarget.get(resolveTargetId(id)) || []).slice(); }
 
   function publicState(value, registered) {
     var raw = String(value || "").toLowerCase();
@@ -186,6 +195,7 @@
     nodesForPanel: nodesForPanel,
     edgesForPanel: edgesForPanel,
     mapForPanel: mapForPanel,
+    sharedAssayGroups: sharedAssayGroups,
     relatedTargets: relatedTargets,
     relatedPanels: relatedPanels,
     childrenOfPanel: childrenOfPanel,
