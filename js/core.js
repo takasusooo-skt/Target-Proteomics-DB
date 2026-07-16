@@ -99,15 +99,19 @@
 
   function publicState(value, registered) {
     var raw = String(value || "").toLowerCase();
-    if (!registered || raw.indexOf("not_registered") !== -1 || raw.indexOf("登録測定系なし") !== -1 || raw.indexOf("現在の登録測定系なし") !== -1) return "not_registered";
-    if (raw.indexOf("measured") !== -1 || raw.indexOf("測定実績あり") !== -1 || raw.indexOf("verified") !== -1 || raw.indexOf("active") !== -1) return "measured";
+    if (raw.indexOf("未検討") !== -1) return "unexamined";
+    if (raw.indexOf("unexamined") !== -1) return "unexamined";
+    if (!registered || raw.indexOf("not_registered") !== -1 || raw.indexOf("登録測定系なし") !== -1 || raw.indexOf("現在の登録測定系なし") !== -1) return "unexamined";
+    if (raw.indexOf("検出境界") !== -1 || raw.indexOf("borderline") !== -1) return "borderline";
+    if (raw.indexOf("検討済み（未検出）") !== -1 || raw.indexOf("tested_not_detected") !== -1) return "tested_not_detected";
+    if (raw.indexOf("測定可能") !== -1 || raw.indexOf("measured") !== -1 || raw.indexOf("測定実績あり") !== -1 || raw.indexOf("verified") !== -1 || raw.indexOf("active") !== -1) return "measured";
     return "candidate";
   }
   function statusLabel(value, registered) {
-    return { measured: "測定実績あり", candidate: "測定候補", not_registered: "登録測定系なし" }[publicState(value, registered)];
+    return { measured: "測定可能", tested_not_detected: "未検出", unexamined: "未検討" }[publicDisplayState(value, registered)];
   }
   function statusSymbol(value, registered) {
-    return { measured: "●", candidate: "▲", not_registered: "□" }[publicState(value, registered)];
+    return { measured: "●", tested_not_detected: "■", unexamined: "△" }[publicDisplayState(value, registered)];
   }
 
   function relatedTargets(id) {
@@ -151,7 +155,14 @@
   }
 
   function statusClass(status) {
-    return "status--" + publicState(status, true).replace("not_registered", "unregistered");
+    return "status--" + publicDisplayState(status, true);
+  }
+
+  function publicDisplayState(value, registered) {
+    var state = publicState(value, registered);
+    if (state === "borderline" || state === "tested_not_detected") return "tested_not_detected";
+    if (state === "candidate" || state === "unexamined" || state === "not_registered") return "unexamined";
+    return "measured";
   }
 
   function scopeLabel(scope) {
@@ -181,6 +192,7 @@
     parseHash: parseHash,
     statusClass: statusClass,
     publicState: publicState,
+    publicDisplayState: publicDisplayState,
     statusLabel: statusLabel,
     statusSymbol: statusSymbol,
     scopeLabel: scopeLabel

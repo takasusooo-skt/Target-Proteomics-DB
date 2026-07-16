@@ -4,16 +4,17 @@
   var C = window.CatalogCore;
   var E = C.escapeHtml;
   var views = ["targets-view", "selected-targets-view", "panels-view", "target-detail-view", "panel-detail-view"];
-  var visibleStatuses = { measured: true, candidate: true, not_registered: true };
+  var visibleStatuses = { measured: true, tested_not_detected: true, unexamined: true };
   var selectedTargets = new Map();
+  var selectionStorageKey = "publicSelectionState";
   var scrollPositions = new Map();
   var lastSelectionCheckId = null;
   var lastSelectionTable = null;
 
-  var sortKey = "gene";
+  var sortKey = "status";
   var sortAsc = true;
 
-  var statusPriority = { measured: 1, candidate: 2, unregistered: 3 };
+  var statusPriority = { measured: 1, candidate: 2, unexamined: 2, borderline: 3, tested_not_detected: 3, unregistered: 2 };
   function getSortValue(target, key) {
     if (key === "select") {
       return selected(target) ? 1 : 2;
@@ -23,6 +24,7 @@
       return statusPriority[state] || 9;
     }
     if (key === "gene") return (target.gene_symbol || "").toLowerCase();
+    if (key === "entry") return (target.uniprot_entry_name || "").toLowerCase();
     if (key === "protein") return (target.protein_name || "").toLowerCase();
     if (key === "isoform") return isoformsForTarget(target).length;
     if (key === "pathway") {
@@ -73,6 +75,9 @@
       restore_pending: ["panels", "targets", "selected", "panel"].indexOf(parsed.view) !== -1
     };
     scrollPositions.set(route, state.scrollY);
+    try {
+      history.replaceState(Object.assign({}, history.state || {}, { route: route, scrollY: state.scrollY }), "", location.href);
+    } catch (error) { /* history state may be unavailable */ }
     try { sessionStorage.setItem("catalogReturnState", JSON.stringify(state)); } catch (error) { /* storage may be unavailable */ }
   }
   function restoreCatalogPosition() {
@@ -107,9 +112,34 @@
     return result;
   }
   function allTargets() { return C.data.targets; }
+  function isUnexamined(target) { var state = C.publicState(target && (target.measurement_state || target.measurement_status), true); return state === "unexamined" || state === "candidate"; }
 
   function selectionSourceIds(target) { return panelsForTarget(target).map(function (panel) { return panel.panel_id; }); }
   function selected(target) { return selectedTargets.has(target.target_id); }
+  function saveSelectionState() {
+    try {
+      sessionStorage.setItem(selectionStorageKey, JSON.stringify({
+        selection_version: 2,
+        selected_targets: Array.from(selectedTargets.values()).map(function (item) {
+          return { target_id: item.target.target_id, target_scope: item.target_scope || "protein", selected_isoform_ids: item.selected_isoform_ids || [], source_group_ids: item.source_group_ids || [], development_only: !!item.development_only };
+        })
+      }));
+    } catch (error) { /* storage may be unavailable */ }
+  }
+  function restoreSelectionState() {
+    try {
+      var saved = JSON.parse(sessionStorage.getItem(selectionStorageKey) || "null");
+      (saved && saved.selected_targets || []).forEach(function (savedItem) {
+        var target = targetById(savedItem.target_id);
+        if (!target) return;
+        addSelection(target, null, !!savedItem.development_only);
+        var item = selectedTargets.get(target.target_id);
+        item.target_scope = savedItem.target_scope || "protein";
+        item.selected_isoform_ids = Array.from(new Set(savedItem.selected_isoform_ids || []));
+        item.source_group_ids = savedItem.source_group_ids || selectionSourceIds(target);
+      });
+    } catch (error) { /* storage may be unavailable or stale */ }
+  }
   function addSelection(target, sourceGroupId, developmentOnly) {
     if (!target) return;
     var current = selectedTargets.get(target.target_id) || { target: target, source_group_ids: [], development_only: !!developmentOnly };
@@ -119,10 +149,17 @@
     selectedTargets.set(target.target_id, current);
   }
   function removeSelection(targetId) { selectedTargets.delete(targetId); }
+  function removeSelectionIsoform(targetId, isoformId) {
+    var item = selectedTargets.get(targetId);
+    if (!item) return;
+    item.selected_isoform_ids = (item.selected_isoform_ids || []).filter(function (id) { return id !== isoformId; });
+    if (!item.selected_isoform_ids.length) removeSelection(targetId);
+    else item.target_scope = isoformScopeForIds(item.target, item.selected_isoform_ids);
+  }
   function setSelectionState(check, shouldSelect) {
     var target = targetById(check.dataset.selectionCheck);
     if (!target) return;
-    if (shouldSelect) addSelection(target, check.dataset.selectionPanel || null, target.measurement_state === "not_registered"); else removeSelection(target.target_id);
+    if (shouldSelect) addSelection(target, check.dataset.selectionPanel || null, isUnexamined(target)); else removeSelection(target.target_id);
     check.checked = shouldSelect;
   }
   function selectCheckRange(check, shouldSelect) {
@@ -137,17 +174,17 @@
   function toggleSelection(target, sourceGroupId, developmentOnly, checkbox) { if (selected(target)) removeSelection(target.target_id); else addSelection(target, sourceGroupId, developmentOnly); if (checkbox) checkbox.checked = selected(target); renderSelection(false); }
   function setTargetScope(target, scope, isoformIds) {
     if (!target) return;
-    if (!selected(target)) addSelection(target, null, target.measurement_state === "not_registered");
+    if (!selected(target)) addSelection(target, null, isUnexamined(target));
     var item = selectedTargets.get(target.target_id);
     item.target_scope = scope || "protein";
     item.selected_isoform_ids = Array.from(new Set(isoformIds || []));
     renderSelection(false);
   }
   function eligiblePanelRows(panel) {
-    return panelRows(panel).filter(function (row) { if (!row.target) return false; var status = C.publicState(row.target.measurement_state || row.target.measurement_status, true); return !!visibleStatuses[status]; });
+    return panelRows(panel).filter(function (row) { if (!row.target) return false; var status = C.publicDisplayState(row.target.measurement_state || row.target.measurement_status, true); return !!visibleStatuses[status]; });
   }
   function panelFullySelected(panel) { var rows = eligiblePanelRows(panel); return rows.length > 0 && rows.every(function (row) { return selected(row.target) && (selectedTargets.get(row.target.target_id).source_group_ids || []).indexOf(panel.panel_id) !== -1; }); }
-  function selectionPayload() { return { selection_version: 2, schema: "targeted-proteomics-selection/2", selected_targets: Array.from(selectedTargets.values()).map(function (item) { var target = item.target; var state = target.measurement_state || C.publicState(target.measurement_status, true), scope = item.target_scope || "protein", ids = item.selected_isoform_ids || []; return { target_id: target.target_id, public_target_id: target.target_id, gene_symbol: target.gene_symbol, uniprot_id: target.canonical_uniprot_id || "", target_scope: scope, isoforms: ids.map(function (id) { return { isoform_id: id, accession: id }; }), measurement_status: target.measurement_status || "", measurement_state: state, request_type: state === "not_registered" ? "assay_development" : "measurement", selection_type: state === "not_registered" ? "development" : "registered", source_group_ids: item.source_group_ids }; }) }; }
+  function selectionPayload() { return { selection_version: 2, schema: "targeted-proteomics-selection/2", selected_targets: Array.from(selectedTargets.values()).map(function (item) { var target = item.target; var state = target.measurement_state || C.publicState(target.measurement_status, true), scope = item.target_scope || "protein", ids = item.selected_isoform_ids || [], unexamined = isUnexamined(target); return { target_id: target.target_id, public_target_id: target.target_id, gene_symbol: target.gene_symbol, uniprot_id: target.canonical_uniprot_id || "", target_scope: scope, isoforms: ids.map(function (id) { return { isoform_id: id, accession: id }; }), measurement_status: target.measurement_status || "", measurement_state: state, request_type: unexamined ? "assay_development" : "measurement", selection_type: unexamined ? "development" : "registered", source_group_ids: item.source_group_ids }; }) }; }
   function downloadSelection(type) {
     var payload = selectionPayload(), stamp = new Date().toISOString().slice(0, 10), blob, name;
     if (type === "json") { blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }); name = "selected-targets-" + stamp + ".json"; }
@@ -157,11 +194,29 @@
   function renderSelection(syncChecks) {
     var count = selectedTargets.size, summary = byId("selection-toggle"), items = byId("selection-items");
     if (summary) summary.textContent = "選択中の測定対象：" + count;
-    if (items) items.innerHTML = count ? Array.from(selectedTargets.values()).map(function (item) { var scopeLabel = { protein: "Proteinレベル", canonical_isoform: "Canonical", specific_isoform: "特定isoform" }[item.target_scope || "protein"]; return '<div class="selection-item"><span><strong>' + E(item.target.gene_symbol) + '</strong><small> ' + E(scopeLabel) + (item.development_only ? ' · 開発希望' : '') + '</small></span><button type="button" data-remove-selection="' + E(item.target.target_id) + '">解除</button></div>'; }).join("") : '<p class="muted">まだ選択されていません。</p>';
-    if (syncChecks !== false) document.querySelectorAll("[data-selection-check]").forEach(function (input) { input.checked = selectedTargets.has(input.dataset.selectionCheck); });
+    if (items) {
+      var selectionRows = [];
+      Array.from(selectedTargets.values()).forEach(function (item) {
+        var ids = item.selected_isoform_ids || [];
+        if (item.target_scope !== "protein" && ids.length) {
+          ids.forEach(function (id) {
+            var isoform = isoformsForTarget(item.target).find(function (candidate) { return candidate.isoform_id === id; });
+            selectionRows.push('<div class="selection-item"><span><strong>' + E(isoformDisplayGene(item.target, id)) + '</strong><small>' + E(isoform ? isoformRowTitle(isoform, item.target) : id) + ' · ' + E(id) + '</small></span><button type="button" data-remove-selection-isoform="' + E(item.target.target_id) + '" data-remove-isoform-id="' + E(id) + '">解除</button></div>');
+          });
+        } else {
+          selectionRows.push('<div class="selection-item"><span><strong>' + E(item.target.gene_symbol) + '</strong><small>Proteinレベル' + (item.development_only ? ' · 開発希望' : '') + '</small></span><button type="button" data-remove-selection="' + E(item.target.target_id) + '">解除</button></div>');
+        }
+      });
+      items.innerHTML = selectionRows.length ? selectionRows.join("") : '<p class="muted">まだ選択されていません。</p>';
+    }
+    if (syncChecks !== false) document.querySelectorAll("[data-selection-check]").forEach(function (input) {
+      var item = selectedTargets.get(input.dataset.selectionCheck);
+      input.checked = !!item && (input.dataset.selectionIsoform ? (item.selected_isoform_ids || []).indexOf(input.dataset.selectionIsoform) !== -1 : true);
+    });
     if (byId("selected-grid")) renderSelectedTargets();
     var targetToggle = byId("target-selection-toggle");
     if (targetToggle && window.currentDetailTarget) { targetToggle.setAttribute("aria-pressed", String(selected(window.currentDetailTarget))); targetToggle.textContent = (selected(window.currentDetailTarget) ? "☑" : "□") + " 測定対象に含める"; }
+    saveSelectionState();
   }
 
   function byId(id) { return document.getElementById(id); }
@@ -169,9 +224,9 @@
   function targetHref(id) { return "#target/" + encodeURIComponent(id); }
   function panelHref(id) { return "#panel/" + encodeURIComponent(id); }
   function statusBadge(value, registered, extraStyle) {
-    var state = C.publicState(value, registered);
+    var state = C.publicDisplayState(value, registered);
     var styleAttr = extraStyle ? ' style="' + E(extraStyle) + '"' : '';
-    return '<span class="status status--' + state.replace("not_registered", "unregistered") + '"' + styleAttr + '><b aria-hidden="true">' + C.statusSymbol(value, registered) + '</b> ' + E(C.statusLabel(value, registered)) + '</span>';
+    return '<span class="status status--' + state + '"' + styleAttr + '><b aria-hidden="true">' + C.statusSymbol(value, registered) + '</b> ' + E(C.statusLabel(value, registered)) + '</span>';
   }
   function panelLink(panel) {
     var label = panel.display_name_ja;
@@ -185,21 +240,19 @@
     if (!parent) return '';
     return '<div class="panel-parent-context"><span>大分類</span>' + panelLink(parent) + '</div>';
   }
-  function targetLink(target) { return '<a class="related-target-row" href="' + targetHref(target.target_id) + '"><strong>' + E(target.gene_symbol) + '</strong>' + statusBadge(target.measurement_status, true, "justify-self: start; width: fit-content;") + '</a>'; }
+  function targetLink(target) { return '<a class="related-target-row" href="' + targetHref(target.target_id) + '"><strong>' + E(target.gene_symbol) + '</strong><span class="related-target-meta">' + isoformBadge(target) + statusBadge(target.measurement_status, true, "justify-self: start; width: fit-content;") + '</span></a>'; }
 
   function panelCounts(panel) {
-    var counts = { measured: 0, candidate: 0, not_registered: 0 };
+    var counts = { measured: 0, tested_not_detected: 0, unexamined: 0 };
     var rows = panelRows(panel);
     rows.forEach(function (row) {
       if (!row.target) return;
-      var state = C.publicState(row.target.measurement_state || row.target.measurement_status, true);
-      if (state === "measured") counts.measured += 1;
-      else if (state === "candidate") counts.candidate += 1;
-      else counts.not_registered += 1;
+      var state = C.publicDisplayState(row.target.measurement_state || row.target.measurement_status, true);
+      if (Object.prototype.hasOwnProperty.call(counts, state)) counts[state] += 1;
     });
     return counts;
   }
-  function countHtml(counts) { return '<div class="status-count-item count-measured"><span>● 測定実績あり</span><b>' + counts.measured + '</b></div><div class="status-count-item count-candidate"><span>▲ 測定候補</span><b>' + counts.candidate + '</b></div><div class="status-count-item count-unregistered"><span>□ 登録測定系なし</span><b>' + counts.not_registered + '</b></div>'; }
+  function countHtml(counts) { return '<div class="status-count-item count-measured"><span>● 測定可能</span><b>' + counts.measured + '</b></div><div class="status-count-item count-unexamined"><span>△ 未検討</span><b>' + counts.unexamined + '</b></div><div class="status-count-item count-tested"><span>■ 未検出</span><b>' + counts.tested_not_detected + '</b></div>'; }
 
   function isoformDisplayName(item, target) {
     var formal = item.uniprot_isoform_name || "";
@@ -219,9 +272,47 @@
     }
     return base;
   }
+  function isoformRowTitle(item, target) {
+    var canonical = canonicalIsoform(target);
+    if (canonical && canonical.isoform_id === item.isoform_id) return "Canonical";
+    var suffix = String(item.isoform_id || "").match(/-(\d+)$/);
+    if (suffix) return "Isoform " + suffix[1];
+    var formal = item.uniprot_isoform_name || "";
+    var match = formal.match(/^Isoform\s+(.+?)\s+of\s+/i);
+    return match ? "Isoform " + match[1] : "Isoform";
+  }
+  function isoformDisplayGene(target, isoformId) {
+    var suffix = String(isoformId || "").match(/-(\d+)$/);
+    return target.gene_symbol + (suffix ? "-" + suffix[1] : "");
+  }
   function isoformMeasurementLabel(item) {
     var mode = { isoform_specific: "区別して測定", shared_isoforms: "区別せずに測定", canonical_reference: "代表配列として測定", not_resolved: "区別せずに測定（isoform未確定）", to_confirm: "区別方法を要確認" }[item.measurement_scope] || "測定区分を要確認";
     return mode + " · " + C.statusLabel(item.measurement_state, true);
+  }
+  function isoformDistinctionLabel(target) {
+    var isoforms = isoformsForTarget(target);
+    if (isoforms.length <= 1) return "なし";
+    var scopes = isoforms.map(function (item) { return item.measurement_scope || ""; });
+    if (scopes.indexOf("isoform_specific") !== -1) return "区別あり";
+    if (scopes.indexOf("shared_isoforms") !== -1) return "区別なし";
+    return "未評価";
+  }
+  function isoformBadge(target) {
+    var count = target ? isoformsForTarget(target).length : 0;
+    return '<span class="isoform-badge">' + (count > 1 ? 'あり（' + count + '件） · ' + isoformDistinctionLabel(target) : 'なし') + '</span>';
+  }
+  function canonicalIsoform(target) {
+    return isoformsForTarget(target).filter(function (item) { return item.canonical_flag === "1" || item.canonical_flag === 1 || item.measurement_scope === "canonical_reference"; })[0] || isoformsForTarget(target)[0] || null;
+  }
+  function isoformScopeForIds(target, ids) {
+    var canonical = canonicalIsoform(target);
+    return ids.length === 1 && canonical && ids[0] === canonical.isoform_id ? "canonical_isoform" : "specific_isoform";
+  }
+  function selectedIsoformNames(target, ids) {
+    return (ids || []).map(function (id) {
+      var item = isoformsForTarget(target).find(function (isoform) { return isoform.isoform_id === id; });
+      return item ? isoformRowTitle(item, target) : id;
+    });
   }
   function filterValues(prefix, key) {
     var host = byId(prefix + "-" + key);
@@ -246,6 +337,7 @@
     }
 
     var state = C.publicState(target.measurement_state || target.measurement_status, true);
+    var displayState = C.publicDisplayState(target.measurement_state || target.measurement_status, true);
     var isoformText = isoformsForTarget(target).map(function (item) { return isoformDisplayName(item, target) + " " + (item.uniprot_isoform_name || ""); }).join(" ");
 
     var haystack = [
@@ -257,6 +349,7 @@
       target.ncbi_gene_id,
       target.ensembl_gene_id,
       target.canonical_uniprot_id,
+      target.uniprot_entry_name,
       target.kegg_gene_id,
       target.detail_groups,
       target.pathway_tags,
@@ -267,24 +360,41 @@
     var targetCategories = (target.category || "").split(";").map(function (s) { return s.trim(); }).filter(Boolean);
     var categoryMatch = !categories.length || categories.some(function (c) { return targetCategories.indexOf(c) !== -1; });
 
+    var statusMatch = !states.length || states.some(function (filterState) { return displayState === filterState; });
     return (!queryTerms.length || queryTerms.every(function (term) { return haystack.indexOf(term) !== -1; })) &&
-           (!states.length || states.indexOf(state) !== -1) &&
+           statusMatch &&
            categoryMatch &&
            (!panelIds.length || panelsForTarget(target).some(function (panel) { return panelIds.indexOf(panel.panel_id) !== -1; })) &&
            (!isoformOnly || isoformsForTarget(target).length > 1);
   }
   function targetMatches(target) { return targetMatchesFor(target, "target"); }
-  function targetRow(target) {
+  function targetRow(target, display) {
     var isoforms = isoformsForTarget(target);
     var panels = panelsForTarget(target).slice(0, 2);
-    return '<div class="target-row" role="row"><span class="target-select-column" data-no-row-link><span class="target-select-box"><input type="checkbox" data-selection-check="' + E(target.target_id) + '" aria-label="' + E(target.gene_symbol) + 'を測定対象に含める"' + (selected(target) ? ' checked' : '') + '></span></span><a class="target-row-link" href="' + E(targetHref(target.target_id)) + '" data-target-link="' + E(targetHref(target.target_id)) + '"><span>' + statusBadge(target.measurement_state || target.measurement_status, true) + '</span><strong class="target-gene">' + E(target.gene_symbol) + '</strong><span class="target-protein-name">' + E(target.protein_name || '') + '</span><span class="target-isoform-cell">' + (isoforms.length > 1 ? E('Isoform ' + isoforms.length + '件') : '') + '</span><span class="target-pathways">' + panels.map(function (panel) { return E(panel.display_name_ja) + ' (' + E(panel.display_name_en) + ')'; }).join(" · ") + '</span></a></div>';
+    var selectionId = display && display.selectionTargetId || target.target_id;
+    var displayGene = display && display.displayGene || target.gene_symbol;
+    var displayIsoform = display && display.isoformName ? '<span class="selected-isoform-label">' + E(display.isoformName) + '</span>' : isoformBadge(target);
+    var isoformAttribute = display && display.isoformId ? ' data-selection-isoform="' + E(display.isoformId) + '"' : '';
+    var checked = display && display.isoformId ? (selectedTargets.get(selectionId) || {}).selected_isoform_ids && (selectedTargets.get(selectionId).selected_isoform_ids || []).indexOf(display.isoformId) !== -1 : selected(target);
+    return '<div class="target-row" role="row"><span class="target-select-column" data-no-row-link><span class="target-select-box"><input type="checkbox" data-selection-check="' + E(selectionId) + '"' + isoformAttribute + ' aria-label="' + E(displayGene) + 'を測定対象に含める"' + (checked ? ' checked' : '') + '></span></span><a class="target-row-link" href="' + E(targetHref(target.target_id)) + '" data-target-link="' + E(targetHref(target.target_id)) + '"><span>' + statusBadge(target.measurement_state || target.measurement_status, true) + '</span><strong class="target-gene">' + E(displayGene) + '</strong><span class="target-entry-name">' + E(target.uniprot_entry_name || '') + '</span><span class="target-protein-name">' + E(target.protein_name || '') + '</span><span class="target-isoform-cell">' + displayIsoform + '</span><span class="target-pathways">' + panels.map(function (panel) { return E(panel.display_name_ja) + ' (' + E(panel.display_name_en) + ')'; }).join(" · ") + '</span></a></div>';
   }
   function renderSelectedTargets() {
-    var selected = Array.from(selectedTargets.values()).map(function (item) { return item.target; });
-    var targets = selected.filter(function (target) { return targetMatchesFor(target, "selected"); });
-    sortTargets(targets);
-    byId("selected-result-count").textContent = targets.length + " / " + selected.length;
-    byId("selected-grid").innerHTML = targets.length ? targets.map(targetRow).join("") : '<p class="empty-state">条件に一致する選択済みタンパク質がありません。</p>';
+    var entries = [];
+    Array.from(selectedTargets.values()).forEach(function (item) {
+      var ids = item.selected_isoform_ids || [];
+      if (item.target_scope !== "protein" && ids.length) {
+        ids.forEach(function (id) {
+          var isoform = isoformsForTarget(item.target).find(function (candidate) { return candidate.isoform_id === id; });
+          entries.push({ target: item.target, selectionTargetId: item.target.target_id, isoformId: id, displayGene: isoformDisplayGene(item.target, id), isoformName: isoform ? isoformRowTitle(isoform, item.target) : id });
+        });
+      } else {
+        entries.push({ target: item.target, selectionTargetId: item.target.target_id });
+      }
+    });
+    entries = entries.filter(function (entry) { return targetMatchesFor(entry.target, "selected"); });
+    entries.sort(function (a, b) { var va = getSortValue(a.target, sortKey), vb = getSortValue(b.target, sortKey); if (va < vb) return sortAsc ? -1 : 1; if (va > vb) return sortAsc ? 1 : -1; return String(a.displayGene || a.target.gene_symbol).localeCompare(String(b.displayGene || b.target.gene_symbol)); });
+    byId("selected-result-count").textContent = entries.length + " / " + selectedTargets.size;
+    byId("selected-grid").innerHTML = entries.length ? entries.map(function (entry) { return targetRow(entry.target, entry); }).join("") : '<p class="empty-state">条件に一致する選択済みタンパク質がありません。</p>';
   }
   function renderTargets() {
     var all = allTargets();
@@ -318,6 +428,48 @@
 
     byId("target-grid").innerHTML = html;
   }
+  function configureResizableTargetTables() {
+    var columnKeys = ["select", "status", "gene", "entry", "protein", "isoform", "pathway"];
+    document.querySelectorAll(".target-table").forEach(function (table, tableIndex) {
+      var header = table.querySelector(":scope > .target-table-head");
+      if (!header) return;
+      var tableKey = table.getAttribute("aria-label") || "target-table-" + tableIndex;
+      var storageKey = "publicTargetTableColumnWidths:" + tableKey;
+      var saved = {};
+      try { saved = JSON.parse(localStorage.getItem(storageKey) || "{}"); } catch (error) { saved = {}; }
+      Array.from(header.children).forEach(function (cell, index) {
+        var key = cell.dataset.sortCol || columnKeys[index];
+        if (!key) return;
+        if (saved[key]) table.style.setProperty("--target-col-" + key, saved[key] + "px");
+        if (cell.querySelector(".target-column-resizer")) return;
+        var handle = document.createElement("span");
+        handle.className = "target-column-resizer";
+        handle.title = "列幅を変更";
+        handle.addEventListener("mousedown", function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          var startX = event.clientX;
+          var startWidth = cell.getBoundingClientRect().width;
+          table.classList.add("is-resizing");
+          function move(moveEvent) {
+            var width = Math.max(70, startWidth + moveEvent.clientX - startX);
+            table.style.setProperty("--target-col-" + key, width + "px");
+          }
+          function finish() {
+            table.classList.remove("is-resizing");
+            document.removeEventListener("mousemove", move);
+            document.removeEventListener("mouseup", finish);
+            saved[key] = Math.round(cell.getBoundingClientRect().width);
+            try { localStorage.setItem(storageKey, JSON.stringify(saved)); } catch (error) { /* storage may be unavailable */ }
+          }
+          document.addEventListener("mousemove", move);
+          document.addEventListener("mouseup", finish);
+        });
+        handle.addEventListener("click", function (event) { event.preventDefault(); event.stopPropagation(); });
+        cell.appendChild(handle);
+      });
+    });
+  }
   function panelCard(panel, anchorId) {
     var counts = panelCounts(panel);
     var nameHtml = E(panel.display_name_ja || panel.short_name || panel.panel_name);
@@ -330,8 +482,15 @@
     var query = byId("panel-search").value.trim().toLowerCase();
     var panels = C.data.panels.filter(function (panel) { return !query || [panel.display_name_ja, panel.display_name_en, panel.purpose, panel.description_ja].join(" ").toLowerCase().indexOf(query) !== -1; });
 
+    // Jump links and lower domain sections share one intentional order.
+    var domainOrder = ["PNL-MITO-001", "PNL-METAB-001", "PNL-PROT-001", "PNL-NAD-001", "PNL-REDOX-001", "PNL-DNA-001", "PNL-AA-001"];
+    var domainRank = new Map(domainOrder.map(function (id, index) { return [id, index]; }));
     var groups = new Map();
-    var domainPanels = C.data.panels.filter(function (p) { return p.catalog_group_type === "domain"; });
+    var domainPanels = C.data.panels.filter(function (p) { return p.catalog_group_type === "domain"; }).sort(function (a, b) {
+      var rankA = domainRank.has(a.panel_id) ? domainRank.get(a.panel_id) : domainOrder.length;
+      var rankB = domainRank.has(b.panel_id) ? domainRank.get(b.panel_id) : domainOrder.length;
+      return rankA - rankB;
+    });
     domainPanels.forEach(function (dp) { groups.set(dp.display_name_ja, []); });
 
     panels.forEach(function (panel) {
@@ -343,7 +502,7 @@
     });
 
     byId("panel-result-count").textContent = panels.length + " / " + C.data.panels.length;
-    var topLevel = C.data.panels.filter(function (panel) { return panel.catalog_group_type === "domain"; });
+    var topLevel = domainPanels;
     var jumpHost = byId("panel-domain-jumps");
     if (jumpHost) jumpHost.innerHTML = topLevel.map(function (panel) { return '<button type="button" class="small-action" data-scroll-to="panel-domain-children-' + E(panel.panel_id) + '">' + E(panel.display_name_ja) + '</button>'; }).join("");
     var topBlock = topLevel.length ? '<section class="panel-group panel-group--top"><h2>大分類</h2><div id="panel-domain-items" class="catalog-grid catalog-grid--panels">' + topLevel.map(function (panel) { return panelCard(panel, "panel-domain-" + panel.panel_id); }).join("") + '</div></section>' : '';
@@ -362,7 +521,9 @@
     byId("target-detail-symbol").textContent = target.gene_symbol;
     byId("target-detail-name").textContent = target.protein_name;
     byId("target-detail-status").innerHTML = statusBadge(target.measurement_status, true, "width: fit-content;");
-    byId("target-detail-summary").textContent = target.public_note || "詳細情報";
+    var summary = byId("target-detail-summary");
+    summary.textContent = target.public_note || "";
+    summary.hidden = !target.public_note;
 
     var panels = locationPanelsForTarget(target);
     var domainNames = [];
@@ -395,20 +556,22 @@
       '<div class="detail-field"><dt>代表別名</dt><dd>' + E(target.display_aliases || "未指定") + '</dd></div>' +
       '<div class="detail-field"><dt>UniProt</dt><dd>' + E(target.canonical_uniprot_id || "未指定") + '</dd></div>' +
       (target.uniprot_entry_name ? '<div class="detail-field"><dt>Entry Name</dt><dd>' + E(target.uniprot_entry_name) + '</dd></div>' : '') +
+      '<div class="detail-field"><dt>Isoform区別</dt><dd>' + E(isoformDistinctionLabel(target)) + '（登録 ' + E(isoformsForTarget(target).length) + '件）</dd></div>' +
       '<div class="detail-field"><dt>HGNC</dt><dd>' + E(target.hgnc_id || "未指定") + '</dd></div>' +
       '<div class="detail-field"><dt>NCBI Gene</dt><dd>' + E(target.ncbi_gene_id || "未指定") + '</dd></div>' +
       '<div class="detail-field"><dt>Ensembl Gene</dt><dd>' + E(target.ensembl_gene_id || "未指定") + '</dd></div>' +
       '<div class="detail-field"><dt>KEGG Gene</dt><dd>' + E(target.kegg_gene_id || "未指定") + '</dd></div>' +
       (target.sample_type && target.sample_type !== "未指定" ? '<div class="detail-field"><dt>対応試料</dt><dd>' + E(target.sample_type) + '</dd></div>' : '');
 
-    var isoforms = isoformsForTarget(target), selectedItem = selectedTargets.get(target.target_id) || {}, selectedScope = selectedItem.target_scope || "protein", selectedIsoformIds = selectedItem.selected_isoform_ids || [], canonical = isoforms.filter(function (item) { return item.canonical_flag === "1" || item.canonical_flag === 1 || item.measurement_scope === "canonical_reference"; })[0] || isoforms[0];
+    var isoforms = isoformsForTarget(target), selectedItem = selectedTargets.get(target.target_id) || {}, selectedScope = selectedItem.target_scope || "protein", selectedIsoformIds = selectedItem.selected_isoform_ids || [], canonical = canonicalIsoform(target);
     byId("target-isoform-section").hidden = isoforms.length <= 1;
     if (isoforms.length > 1) {
-      var choices = '<div class="isoform-selection-choices"><strong>測定対象の範囲</strong><label><input type="radio" name="target-scope" value="protein" data-target-scope="protein" data-target-id="' + E(target.target_id) + '"' + (selectedScope === "protein" ? ' checked' : '') + '> Proteinレベル</label>';
-      if (canonical) choices += '<label><input type="radio" name="target-scope" value="canonical_isoform" data-target-scope="canonical_isoform" data-target-id="' + E(target.target_id) + '"' + (selectedScope === "canonical_isoform" ? ' checked' : '') + '> Canonical · ' + E(isoformDisplayName(canonical, target)) + '</label>';
-      choices += '<label><input type="radio" name="target-scope" value="specific_isoform" data-target-scope="specific_isoform" data-target-id="' + E(target.target_id) + '"' + (selectedScope === "specific_isoform" ? ' checked' : '') + '> Isoformを指定</label><div class="isoform-selection-list">' + isoforms.map(function (item) { var checked = selectedIsoformIds.indexOf(item.isoform_id) !== -1; return '<label><input type="checkbox" data-target-isoform="' + E(item.isoform_id) + '" data-target-id="' + E(target.target_id) + '"' + (checked ? ' checked' : '') + '> ' + E(isoformDisplayName(item, target)) + ' · ' + E(item.isoform_id) + '</label>'; }).join("") + '</div></div>';
-      byId("target-isoforms").innerHTML = choices + isoforms.map(function (item) { return '<div><strong>' + E(isoformDisplayName(item, target)) + '</strong><small>UniProt: ' + E(item.isoform_id) + ' · ' + E(isoformMeasurementLabel(item)) + '</small>' + (item.uniprot_isoform_name ? '<em>' + E(item.uniprot_isoform_name) + '</em>' : '') + '</div>'; }).join("");
+      byId("target-isoform-title").innerHTML = 'Isoformあり · ' + E(isoformDistinctionLabel(target)) + ' <span class="isoform-title-badge">' + E('' + isoforms.length + '件') + '</span>';
+      var choices = '<div class="isoform-selection-choices"><strong>測定対象の範囲</strong><label class="scope-choice"><input type="radio" name="target-scope" value="protein" data-target-scope="protein" data-target-id="' + E(target.target_id) + '"' + (selectedScope === "protein" ? ' checked' : '') + '> Proteinレベル</label><label class="scope-choice"><input type="radio" name="target-scope" value="specific_isoform" data-target-scope="specific_isoform" data-target-id="' + E(target.target_id) + '"' + (selectedScope !== "protein" ? ' checked' : '') + '> Isoformを区別</label><p class="isoform-selection-help">対象にするisoformを左側のチェックで選択できます。</p></div>';
+      var isoformRows = isoforms.map(function (item) { var checked = selectedIsoformIds.indexOf(item.isoform_id) !== -1; return '<label class="isoform-display-row"><span class="isoform-display-check"><input type="checkbox" data-target-isoform="' + E(item.isoform_id) + '" data-target-id="' + E(target.target_id) + '"' + (checked ? ' checked' : '') + '> 対象</span><span class="isoform-display-info"><strong>' + E(isoformRowTitle(item, target)) + '</strong><small>' + E(item.isoform_id) + ' · ' + E(isoformMeasurementLabel(item)) + '</small></span></label>'; }).join("");
+      byId("target-isoforms").innerHTML = choices + '<div class="isoform-list isoform-list--selectable">' + isoformRows + '</div>';
     } else {
+      byId("target-isoform-title").textContent = "Isoform";
       byId("target-isoforms").innerHTML = '';
     }
     var related = C.relatedTargets(target.target_id);
@@ -471,12 +634,12 @@
     return rows.sort(function (a, b) { return a.label.localeCompare(b.label); });
   }
   function renderPanelTargets(panel) {
-    var rows = panelRows(panel).filter(function (row) { var status = row.target ? C.publicState(row.target.measurement_state || row.target.measurement_status, true) : "not_registered"; return !!visibleStatuses[status]; });
-    byId("panel-target-list").innerHTML = rows.map(function (row) { var value = row.target ? (row.target.measurement_state || row.target.measurement_status) : "not_registered"; var href = row.target ? targetHref(row.id) : "#"; var linkOpen = href === "#" ? '<span class="panel-target-link" data-target-link="#">' : '<a class="panel-target-link" href="' + E(href) + '" data-target-link="' + E(href) + '">'; var linkClose = href === "#" ? '</span>' : '</a>'; return '<div class="panel-target-row panel-target-row--' + C.publicState(value, true) + '"><span class="target-select-column" data-no-row-link><span class="target-select-box"><input type="checkbox" data-selection-check="' + E(row.target ? row.target.target_id : row.id) + '" data-selection-panel="' + E(panel.panel_id) + '" aria-label="' + E(row.label) + 'を測定対象に含める"' + (row.target && selected(row.target) ? ' checked' : '') + '></span></span>' + linkOpen + '<strong>' + E(row.label) + '</strong>' + statusBadge(value, true) + linkClose + '</div>'; }).join("") || '<p class="muted">表示対象のタンパク質はありません。</p>';
+    var rows = panelRows(panel).filter(function (row) { var status = row.target ? C.publicDisplayState(row.target.measurement_state || row.target.measurement_status, true) : "unexamined"; return !!visibleStatuses[status]; });
+    byId("panel-target-list").innerHTML = rows.map(function (row) { var value = row.target ? (row.target.measurement_state || row.target.measurement_status) : "未検討"; var displayState = C.publicDisplayState(value, true); var href = row.target ? targetHref(row.id) : "#"; var linkOpen = href === "#" ? '<span class="panel-target-link" data-target-link="#">' : '<a class="panel-target-link" href="' + E(href) + '" data-target-link="' + E(href) + '">'; var linkClose = href === "#" ? '</span>' : '</a>'; return '<div class="panel-target-row panel-target-row--' + displayState + '"><span class="target-select-column" data-no-row-link><span class="target-select-box"><input type="checkbox" data-selection-check="' + E(row.target ? row.target.target_id : row.id) + '" data-selection-panel="' + E(panel.panel_id) + '" aria-label="' + E(row.label) + 'を測定対象に含める"' + (row.target && selected(row.target) ? ' checked' : '') + '></span></span>' + linkOpen + '<strong>' + E(row.label) + '</strong><span class="panel-target-meta">' + (row.target ? isoformBadge(row.target) : '') + statusBadge(value, true) + '</span>' + linkClose + '</div>'; }).join("") || '<p class="muted">表示対象のタンパク質はありません。</p>';
     document.querySelectorAll("[data-status-filter]").forEach(function (button) { var status = button.dataset.statusFilter; button.setAttribute("aria-pressed", String(!!visibleStatuses[status])); });
     var bulk = document.querySelector("[data-panel-select]"), exclude = document.querySelector("[data-panel-exclude-unregistered]");
-    if (bulk) bulk.textContent = "表示されているものを追加";
-    if (exclude) exclude.textContent = "登録測定系なしのタンパク質を除外";
+    if (bulk) { var fullySelected = panelFullySelected(panel); bulk.textContent = fullySelected ? "表示中のものを除外" : "表示されているものを追加"; bulk.dataset.panelBulkMode = fullySelected ? "remove" : "add"; }
+    if (exclude) exclude.hidden = true;
   }
   function renderPanelDetail(panel) {
     showView("panel-detail-view");
@@ -508,8 +671,8 @@
   }
   function renderRoute() {
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-    var savedScroll = scrollPositions.get(location.hash);
-    window.scrollTo(0, savedScroll == null ? 0 : savedScroll);
+    var routeState = history.state || {};
+    var savedScroll = routeState.route === location.hash && Number.isFinite(Number(routeState.scrollY)) ? Number(routeState.scrollY) : null;
     var route = C.parseHash(location.hash);
     if (route.view === "target") { var target = targetById(route.id); if (target) renderTargetDetail(target); else { showView("targets-view"); renderTargets(); } }
     else if (route.view === "panel") { var panel = C.panelById(route.id); if (panel) renderPanelDetail(panel); else { showView("panels-view"); renderPanels(); } }
@@ -517,7 +680,10 @@
     else if (route.view === "selected") { showView("selected-targets-view"); renderSelectedTargets(); }
     else { showView("targets-view"); renderTargets(); }
     syncTabs();
-    if (shouldRestoreCatalogPosition()) requestAnimationFrame(function () { requestAnimationFrame(restoreCatalogPosition); });
+    // A newly entered hash is a new page and starts at the top. Restore only
+    // when the matching history entry contains the previous scroll position.
+    var destinationScroll = savedScroll == null ? 0 : savedScroll;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { window.scrollTo({ top: destinationScroll, behavior: "auto" }); }); });
   }
   function populateMultiFilter(id, label, options) {
     var host = byId(id), optionsHost = host.querySelector("[data-filter-options]");
@@ -526,7 +692,7 @@
     updateFilterSummary(host);
   }
   function populateFilters() {
-    var statuses = [{ value: "measured", label: "● 測定実績あり" }, { value: "candidate", label: "▲ 測定候補" }, { value: "not_registered", label: "□ 測定例なし" }];
+    var statuses = [{ value: "measured", label: "● 測定可能" }, { value: "unexamined", label: "△ 未検討" }, { value: "tested_not_detected", label: "■ 未検出" }];
 
     var categorySet = new Set();
     allTargets().forEach(function (target) {
@@ -547,16 +713,16 @@
     var scopeChoice = event.target.closest("[data-target-scope]");
     if (scopeChoice) {
       var scopeTarget = targetById(scopeChoice.dataset.targetId), scope = scopeChoice.dataset.targetScope, checkedIsoforms = Array.from(document.querySelectorAll('[data-target-isoform][data-target-id="' + CSS.escape(scopeChoice.dataset.targetId) + '"]:checked')).map(function (input) { return input.dataset.targetIsoform; });
-      if (scope === "canonical_isoform") { var canonicalChoice = isoformsForTarget(scopeTarget).filter(function (item) { return item.measurement_scope === "canonical_reference"; })[0] || isoformsForTarget(scopeTarget)[0]; checkedIsoforms = canonicalChoice ? [canonicalChoice.isoform_id] : []; }
+      if (scope === "canonical_isoform") { var canonicalChoice = canonicalIsoform(scopeTarget); checkedIsoforms = canonicalChoice ? [canonicalChoice.isoform_id] : []; }
       setTargetScope(scopeTarget, scope, checkedIsoforms);
       return;
     }
     var isoformChoice = event.target.closest("[data-target-isoform]");
     if (isoformChoice) {
-      var isoformTarget = targetById(isoformChoice.dataset.targetId), selectedIsoforms = Array.from(document.querySelectorAll('[data-target-isoform][data-target-id="' + CSS.escape(isoformChoice.dataset.targetId) + '"]:checked')).map(function (input) { return input.dataset.targetIsoform; });
-      setTargetScope(isoformTarget, "specific_isoform", selectedIsoforms);
-      var specific = document.querySelector('[data-target-scope="specific_isoform"][data-target-id="' + CSS.escape(isoformChoice.dataset.targetId) + '"]');
-      if (specific) specific.checked = true;
+      var isoformTarget = targetById(isoformChoice.dataset.targetId), selectedIsoforms = Array.from(document.querySelectorAll('[data-target-isoform][data-target-id="' + CSS.escape(isoformChoice.dataset.targetId) + '"]:checked')).map(function (input) { return input.dataset.targetIsoform; }), inferredScope = isoformScopeForIds(isoformTarget, selectedIsoforms);
+      setTargetScope(isoformTarget, inferredScope, selectedIsoforms);
+      var selectedRadio = document.querySelector('[data-target-scope="' + inferredScope + '"][data-target-id="' + CSS.escape(isoformChoice.dataset.targetId) + '"]');
+      if (selectedRadio) selectedRadio.checked = true;
       return;
     }
     var check = event.target.closest("[data-selection-check]");
@@ -564,7 +730,12 @@
     var target = targetById(check.dataset.selectionCheck);
     if (!target) return;
     rememberSelectionCheck(check);
-    if (check.checked) addSelection(target, check.dataset.selectionPanel || null, target.measurement_state === "not_registered"); else removeSelection(target.target_id);
+    if (check.dataset.selectionIsoform) {
+      if (!check.checked) removeSelectionIsoform(check.dataset.selectionCheck, check.dataset.selectionIsoform);
+      renderSelection(false);
+      return;
+    }
+    if (check.checked) addSelection(target, check.dataset.selectionPanel || null, isUnexamined(target)); else removeSelection(target.target_id);
     renderSelection(false);
   });
   document.addEventListener("click", function (event) {
@@ -597,8 +768,7 @@
     var internalLink = event.target.closest('a[href^="#"]');
     var returnTopLink = event.target.closest("[data-return-top]");
     if (internalLink) {
-      var sourceRoute = C.parseHash(location.hash);
-      if (sourceRoute.view !== "target" && !returnTopLink) rememberCurrentScroll();
+      if (!returnTopLink) rememberCurrentScroll();
       if (returnTopLink) {
         scrollPositions.set(internalLink.getAttribute("href"), 0);
         try {
@@ -625,18 +795,31 @@
     if (check) { event.stopPropagation(); return; }
     var selectionCell = event.target.closest("[data-no-row-link]");
     if (selectionCell) { event.preventDefault(); event.stopPropagation(); return; }
+    var removeIsoform = event.target.closest("[data-remove-selection-isoform]");
+    if (removeIsoform) { removeSelectionIsoform(removeIsoform.dataset.removeSelectionIsoform, removeIsoform.dataset.removeIsoformId); renderSelection(); return; }
     var remove = event.target.closest("[data-remove-selection]");
     if (remove) { removeSelection(remove.dataset.removeSelection); renderSelection(); return; }
     var targetToggle = event.target.closest("#target-selection-toggle");
-    if (targetToggle) { event.preventDefault(); toggleSelection(window.currentDetailTarget, null, window.currentDetailTarget.measurement_state === "not_registered"); return; }
+    if (targetToggle) { event.preventDefault(); toggleSelection(window.currentDetailTarget, null, isUnexamined(window.currentDetailTarget)); return; }
     var statusFilter = event.target.closest("[data-status-filter]");
     if (statusFilter) { event.preventDefault(); var statusKey = statusFilter.dataset.statusFilter; visibleStatuses[statusKey] = !visibleStatuses[statusKey]; var statusRoute = C.parseHash(location.hash); var statusPanel = statusRoute.view === "panel" ? C.panelById(statusRoute.id) : null; if (statusPanel) renderPanelTargets(statusPanel); return; }
     var bulk = event.target.closest("[data-panel-select]");
-    if (bulk) { event.preventDefault(); var bulkRoute = C.parseHash(location.hash), bulkPanel = bulkRoute.view === "panel" ? C.panelById(bulkRoute.id) : null; if (bulkPanel) { eligiblePanelRows(bulkPanel).forEach(function (row) { addSelection(row.target, bulkPanel.panel_id, row.target.measurement_state === "not_registered"); }); renderPanelTargets(bulkPanel); renderSelection(); } return; }
+    if (bulk) { event.preventDefault(); var bulkRoute = C.parseHash(location.hash), bulkPanel = bulkRoute.view === "panel" ? C.panelById(bulkRoute.id) : null; if (bulkPanel) { var bulkRows = eligiblePanelRows(bulkPanel), removeMode = bulk.dataset.panelBulkMode === "remove"; bulkRows.forEach(function (row) { if (removeMode) { var item = selectedTargets.get(row.target.target_id); if (item) { item.source_group_ids = (item.source_group_ids || []).filter(function (id) { return id !== bulkPanel.panel_id; }); if (!item.source_group_ids.length) removeSelection(row.target.target_id); } } else { addSelection(row.target, bulkPanel.panel_id, isUnexamined(row.target)); } }); renderPanelTargets(bulkPanel); renderSelection(); } return; }
     var exclude = event.target.closest("[data-panel-exclude-unregistered]");
-    if (exclude) { event.preventDefault(); var excludeRoute = C.parseHash(location.hash), excludePanel = excludeRoute.view === "panel" ? C.panelById(excludeRoute.id) : null; if (excludePanel) { panelRows(excludePanel).forEach(function (row) { if (!row.target || row.target.measurement_state !== "not_registered") return; var item = selectedTargets.get(row.target.target_id); if (!item) return; item.source_group_ids = (item.source_group_ids || []).filter(function (id) { return id !== excludePanel.panel_id; }); if (!item.source_group_ids.length) removeSelection(row.target.target_id); }); renderPanelTargets(excludePanel); renderSelection(); } return; }
+    if (exclude) { event.preventDefault(); var excludeRoute = C.parseHash(location.hash), excludePanel = excludeRoute.view === "panel" ? C.panelById(excludeRoute.id) : null; if (excludePanel) { panelRows(excludePanel).forEach(function (row) { if (!row.target || C.publicState(row.target.measurement_state || row.target.measurement_status, true) !== "unexamined") return; var item = selectedTargets.get(row.target.target_id); if (!item) return; item.source_group_ids = (item.source_group_ids || []).filter(function (id) { return id !== excludePanel.panel_id; }); if (!item.source_group_ids.length) removeSelection(row.target.target_id); }); renderPanelTargets(excludePanel); renderSelection(); } return; }
     var selectionToggle = event.target.closest("#selection-toggle");
     if (selectionToggle) { var drawer = byId("selection-drawer"); drawer.hidden = !drawer.hidden; selectionToggle.setAttribute("aria-expanded", String(!drawer.hidden)); return; }
+    var selectionListLink = event.target.closest(".selection-page-link,.selection-drawer-link");
+    if (selectionListLink) {
+      byId("selection-drawer").hidden = true;
+      byId("selection-toggle").setAttribute("aria-expanded", "false");
+      return;
+    }
+    var selectionDrawer = byId("selection-drawer");
+    if (selectionDrawer && !selectionDrawer.hidden && !event.target.closest(".selection-bar")) {
+      selectionDrawer.hidden = true;
+      byId("selection-toggle").setAttribute("aria-expanded", "false");
+    }
     var scrollTo = event.target.closest("[data-scroll-to]");
     if (scrollTo) { event.preventDefault(); var destination = byId(scrollTo.dataset.scrollTo); if (destination) destination.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     if (event.target.closest("#selection-close")) { byId("selection-drawer").hidden = true; return; }
@@ -660,16 +843,22 @@
     }
   });
   window.CatalogNavigation = { rememberScroll: rememberCurrentScroll };
+  function configurePublicStatusVisibility() {
+    document.querySelectorAll(".status-visibility-filters").forEach(function (host) {
+      host.innerHTML = '<button type="button" class="visibility-toggle" data-status-filter="measured" aria-pressed="true">● 測定可能</button><button type="button" class="visibility-toggle" data-status-filter="unexamined" aria-pressed="true">△ 未検討</button><button type="button" class="visibility-toggle" data-status-filter="tested_not_detected" aria-pressed="true">■ 未検出</button>';
+    });
+  }
   document.addEventListener("DOMContentLoaded", function () {
     populateFilters();
+    configurePublicStatusVisibility();
+    configureResizableTargetTables();
+    restoreSelectionState();
     renderSelection();
     updateSortIndicators();
     var proteinTargets = allTargets().filter(function(t) { return t.record_type !== "external_control"; });
-    byId("target-total").textContent = proteinTargets.length;
     byId("target-measured").textContent = proteinTargets.filter(function(t) {
       return C.publicState(t.measurement_state || t.measurement_status, true) === "measured";
     }).length;
-    byId("panel-total").textContent = C.data.panels.length;
     byId("target-search").addEventListener("input", renderTargets);
     ["target-status-filter", "target-category-filter", "target-panel-filter"].forEach(function (id) { byId(id).addEventListener("change", function (event) { updateFilterSummary(event.currentTarget); renderTargets(); }); });
     byId("target-isoform-filter").addEventListener("change", renderTargets);

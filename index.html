@@ -27,20 +27,20 @@
       </div>
     </aside>
     <section id="targets-view" class="view">
-      <div class="simple-hero"><div><p class="eyebrow">公開カタログ</p><h1>タンパク質から探す</h1><p>測定状態、関連する経路・機能、Isoform情報を確認できます。</p></div><div class="stat-strip"><div><strong id="target-total">-</strong><span>掲載数</span></div><div><strong id="target-measured">-</strong><span>測定可能数</span></div><div><strong id="panel-total">-</strong><span>グループ</span></div></div></div>
+      <div class="simple-hero"><div><p class="eyebrow">公開カタログ</p><h1>タンパク質を探す</h1><p>タンパク質名、測定可否、関連経路の確認。Isoform情報は一部のみを表示しています。</p></div><div class="stat-strip"><div><strong id="target-measured">-</strong><span>測定可能</span></div></div></div>
       <div class="filter-panel">
-        <label class="search-box"><span>⌕</span><input id="target-search" type="search" placeholder="Gene symbol / Protein name / UniProt / Isoformを検索"></label>
+        <label class="search-box"><span>⌕</span><input id="target-search" type="search" placeholder="Gene symbol / Entry name / Protein name / Isoformを検索"></label>
         <details id="target-status-filter" class="multi-filter"><summary><span data-filter-summary>測定状態：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
         <details id="target-category-filter" class="multi-filter"><summary><span data-filter-summary>大分類：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
         <details id="target-panel-filter" class="multi-filter"><summary><span data-filter-summary>経路・機能：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
-        <label class="check-filter"><input id="target-isoform-filter" type="checkbox"> Isoform選択対応（2件以上）</label><button type="button" class="filter-reset" data-filter-reset="target">選択条件をリセット</button>
+        <label class="check-filter"><input id="target-isoform-filter" type="checkbox"> Isoformあり（2件以上）</label><button type="button" class="filter-reset" data-filter-reset="target">選択条件をリセット</button>
         <span id="target-result-count" class="result-count"></span>
       </div>
-      <div class="target-table" role="table" aria-label="タンパク質一覧"><div class="target-table-head" role="row"><span class="sortable-header" data-sort-col="select">選択<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="status">測定状態<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="gene">Gene symbol<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="protein">Protein name<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="isoform">Isoform<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="pathway">経路・機能<span class="sort-indicator"></span></span></div><div id="target-grid" class="target-table-body"></div></div>
+      <div class="target-table" role="table" aria-label="タンパク質一覧"><div class="target-table-head" role="row"><span class="sortable-header" data-sort-col="select">選択<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="status">測定状態<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="gene">Gene symbol<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="entry">Entry name<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="protein">Protein name<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="isoform">Isoform<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="pathway">経路・機能<span class="sort-indicator"></span></span></div><div id="target-grid" class="target-table-body"></div></div>
       <div id="external-controls-host" class="target-table-section" style="margin-top: 24px;" hidden>
         <h2 class="section-title" style="margin: 20px 0 10px; font-size: 16px; color: var(--navy);">外部標準・コントロール</h2>
         <div class="target-table" role="table" aria-label="外部標準・コントロール一覧">
-          <div class="target-table-head" role="row"><span>選択</span><span>測定状態</span><span>Gene symbol</span><span>Protein name</span><span>Isoform</span><span>経路・機能</span></div>
+          <div class="target-table-head" role="row"><span>選択</span><span>測定状態</span><span>Gene symbol</span><span>Entry name</span><span>Protein name</span><span>Isoform</span><span>経路・機能</span></div>
           <div id="external-controls-grid" class="target-table-body"></div>
         </div>
       </div>
@@ -59,14 +59,14 @@
         </div>
       </div>
       <div class="filter-panel">
-        <label class="search-box"><span>⌕</span><input id="selected-search" type="search" placeholder="Gene symbol / Protein name / UniProt / Isoformを検索"></label>
+        <label class="search-box"><span>⌕</span><input id="selected-search" type="search" placeholder="Gene symbol / Entry name / Protein name / Isoformを検索"></label>
         <details id="selected-status-filter" class="multi-filter"><summary><span data-filter-summary>測定状態：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
         <details id="selected-category-filter" class="multi-filter"><summary><span data-filter-summary>大分類：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
         <details id="selected-panel-filter" class="multi-filter"><summary><span data-filter-summary>経路・機能：すべて</span></summary><div class="multi-filter-options" data-filter-options></div></details>
-        <label class="check-filter"><input id="selected-isoform-filter" type="checkbox"> Isoform選択対応（2件以上）</label><button type="button" class="filter-reset" data-filter-reset="selected">選択条件をリセット</button>
+        <label class="check-filter"><input id="selected-isoform-filter" type="checkbox"> Isoformあり（2件以上）</label><button type="button" class="filter-reset" data-filter-reset="selected">選択条件をリセット</button>
         <span id="selected-result-count" class="result-count"></span>
       </div>
-      <div class="target-table" role="table" aria-label="選択したタンパク質一覧"><div class="target-table-head" role="row"><span class="sortable-header" data-sort-col="select">選択<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="status">測定状態<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="gene">Gene symbol<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="protein">Protein name<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="isoform">Isoform<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="pathway">経路・機能<span class="sort-indicator"></span></span></div><div id="selected-grid" class="target-table-body"></div></div>
+      <div class="target-table" role="table" aria-label="選択したタンパク質一覧"><div class="target-table-head" role="row"><span class="sortable-header" data-sort-col="select">選択<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="status">測定状態<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="gene">Gene symbol<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="entry">Entry name<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="protein">Protein name<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="isoform">Isoform<span class="sort-indicator"></span></span><span class="sortable-header" data-sort-col="pathway">経路・機能<span class="sort-indicator"></span></span></div><div id="selected-grid" class="target-table-body"></div></div>
     </section>
 
     <section id="panels-view" class="view" hidden>
@@ -91,7 +91,7 @@
       </div>
       <div class="detail-main-simple">
         <section class="detail-section"><p id="target-detail-summary" class="lead-note"></p><dl id="target-detail-fields" class="detail-fields"></dl><div><div id="target-location" class="chip-list"></div></div></section>
-        <section id="target-isoform-section" class="detail-section" hidden><h2>Isoform</h2><div id="target-isoforms" class="isoform-list"></div></section>
+        <section id="target-isoform-section" class="detail-section" hidden><h2 id="target-isoform-title">Isoform</h2><div id="target-isoforms" class="isoform-list"></div></section>
         <section class="detail-section"><h2>関連するタンパク質</h2><div id="target-related" class="chip-list"></div></section>
         <section class="detail-section"><h2>外部データベース</h2><div id="target-detail-links" class="resource-links"></div></section>
         <details id="target-note-section" class="detail-section" hidden><summary>詳細説明</summary><p id="target-detail-note" class="annotation detail-fold-body"></p></details>
@@ -103,7 +103,7 @@
       <div class="detail-hero simple-detail-hero panel-detail-hero"><div class="panel-hero-title"><p class="eyebrow">経路・機能</p><div id="panel-parent-link" class="panel-hero-parent" hidden></div><h1 id="panel-detail-title">-</h1></div><div class="panel-hero-summary"><p id="panel-detail-purpose" class="detail-subtitle">-</p><p id="panel-detail-description" class="panel-hero-description"></p><div id="panel-status-counts" class="status-counts"></div></div></div>
       <div class="detail-main-simple">
         <section id="panel-map-host" class="detail-section panel-map-section"><p class="muted">経路図を準備しています。</p></section>
-        <section class="detail-section"><div class="section-heading-row"><h2>対象タンパク質</h2><div class="status-visibility-filters" role="group" aria-label="測定状態の表示切替"><button type="button" class="visibility-toggle" data-status-filter="measured" aria-pressed="true">● 測定実績あり</button><button type="button" class="visibility-toggle" data-status-filter="candidate" aria-pressed="true">▲ 測定候補</button><button type="button" class="visibility-toggle" data-status-filter="not_registered" aria-pressed="true">□ 登録測定系なし</button></div></div><div class="selection-bulk-actions"><button type="button" class="small-action" data-panel-select>表示されているものを追加</button><button type="button" class="small-action" data-panel-exclude-unregistered>登録測定系なしのタンパク質を除外</button></div><p class="section-note">表示中の状態に該当するタンパク質を追加できます。</p><div id="panel-target-list" class="panel-target-list"></div></section>
+        <section class="detail-section"><div class="section-heading-row"><h2>対象タンパク質</h2><div class="status-visibility-filters" role="group" aria-label="測定状態の表示切替"><button type="button" class="visibility-toggle" data-status-filter="measured" aria-pressed="true">● 測定可能</button><button type="button" class="visibility-toggle" data-status-filter="borderline" aria-pressed="true">◐ 検出境界</button><button type="button" class="visibility-toggle" data-status-filter="tested_not_detected" aria-pressed="true">○ 検討済み（未検出）</button><button type="button" class="visibility-toggle" data-status-filter="candidate" aria-pressed="true">▲ 検討候補</button><button type="button" class="visibility-toggle" data-status-filter="unexamined" aria-pressed="true">▲ 未検討</button></div></div><div class="selection-bulk-actions"><button type="button" class="small-action" data-panel-select>表示されているものを追加</button><button type="button" class="small-action" data-panel-exclude-unregistered>未検討のタンパク質を除外</button></div><p class="section-note">表示中の状態に該当するタンパク質を追加できます。</p><div id="panel-target-list" class="panel-target-list"></div></section>
       </div>
     </section>
   </main>

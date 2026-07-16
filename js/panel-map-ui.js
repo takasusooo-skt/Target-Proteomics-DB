@@ -8,14 +8,19 @@
   function visible(node) { return true; }
   function statusBadge(node) {
     if (node.node_type !== "protein") return "";
-    var registered = !!node.target_id;
-    return '<span class="status status--' + C.publicState(node.measurement_state || node.state, registered).replace("not_registered", "unregistered") + '"><b aria-hidden="true">' + C.statusSymbol(node.measurement_state || node.state, registered) + '</b> ' + E(C.statusLabel(node.measurement_state || node.state, registered)) + '</span>';
+    var target = node.target_id && C.targetById(node.target_id);
+    var registered = !!target || !!node.target_id;
+    var value = target ? (target.measurement_state || target.measurement_status) : (node.measurement_state || node.state);
+    return '<span class="status status--' + C.publicDisplayState(value, registered) + '"><b aria-hidden="true">' + C.statusSymbol(value, registered) + '</b> ' + E(C.statusLabel(value, registered)) + '</span>';
   }
   function mapStatusMark(node) {
     if (node.node_type !== "protein") return "";
-    var state = C.publicState(node.measurement_state || node.state, !!node.target_id);
-    var symbol = { measured: "●", candidate: "▲", not_registered: "□" }[state];
-    return '<span class="map-status-mark map-status-mark--' + state.replace("not_registered", "unregistered") + '" title="' + E({ measured: "実績あり", candidate: "候補", not_registered: "例無し" }[state]) + '" aria-label="' + E({ measured: "実績あり", candidate: "候補", not_registered: "例無し" }[state]) + '">' + symbol + '</span>';
+    var target = node.target_id && C.targetById(node.target_id);
+    var value = target ? (target.measurement_state || target.measurement_status) : (node.measurement_state || node.state);
+    var state = C.publicDisplayState(value, !!target || !!node.target_id);
+    var symbol = { measured: "●", tested_not_detected: "■", unexamined: "△" }[state];
+    var labels = { measured: "測定可能", tested_not_detected: "未検出", unexamined: "未検討" };
+    return '<span class="map-status-mark map-status-mark--' + state + '" title="' + E(labels[state]) + '" aria-label="' + E(labels[state]) + '">' + symbol + '</span>';
   }
   function sourceUrl(database, id) {
     if (database === "Reactome" && id) return "https://reactome.org/content/detail/" + encodeURIComponent(id.split(";")[0]);
@@ -44,7 +49,7 @@
   function nodeCard(node) {
     var target = node.target_id && C.targetById(node.target_id);
     var route = nodeRoute(node);
-    var label = target ? target.gene_symbol : displayLabel(node);
+    var label = target ? '<strong>' + E(target.gene_symbol) + '</strong>' : displayLabel(node);
     var typeClass = node.node_type === "protein" ? " map-node--protein" : node.node_type === "metabolite" ? " map-node--metabolite" : node.node_type === "cross_domain_connection" ? " map-node--cross-domain" : node.node_type === "section_heading" ? " map-node--heading" : " map-node--module";
     var tag = route ? ' data-route="' + E(route.href || "") + '"' + (route.anchor ? ' data-local-anchor="' + E(route.anchor) + '"' : '') + ' tabindex="0"' : '';
     return '<article class="compact-map-node' + typeClass + (route ? route.className : "") + '" data-map-node="' + E(node.node_id) + '"' + tag + '><div class="compact-node-main">' + label + (node.node_type === "protein" ? mapStatusMark(node) : '') + '</div></article>';
@@ -53,7 +58,7 @@
     var target = node.target_id && C.targetById(node.target_id);
     var label = target ? target.gene_symbol : node.label;
     var registered = !!target;
-    var stateName = C.publicState(node.measurement_state || node.state, registered);
+    var stateName = C.publicDisplayState(node.measurement_state || node.state, registered);
     var route = nodeRoute(node);
     var attrs = route && route.href ? ' data-route="' + E(route.href) + '" tabindex="0"' : '';
     return '<div class="enzyme enzyme--' + stateName.replace("not_registered", "unregistered") + '" data-map-node="' + E(node.node_id) + '"' + attrs + '>' + mapStatusMark(node) + ' ' + E(label) + '</div>';
@@ -334,7 +339,7 @@
                       isTca ? tcaRows(map) :
                       aminoContent || moduleRows(map, panel.parent_panel_id || panel.panel_id);
 
-    host.innerHTML = '<div class="compact-map-flow">' + flowContent + '</div>' + localDetailsHtml(map) + '<div class="map-status-legend" aria-label="経路図の測定状態凡例"><span class="map-status-legend__measured">● 実績あり</span><span class="map-status-legend__candidate">▲ 候補</span><span class="map-status-legend__unregistered">□ 例無し</span></div>' + evidenceHtml(map);
+    host.innerHTML = '<div class="compact-map-flow">' + flowContent + '</div>' + localDetailsHtml(map) + '<div class="map-status-legend" aria-label="経路図の測定状態凡例"><span class="map-status-legend__measured">● 測定可能</span><span class="map-status-legend__unexamined">△ 未検討</span><span class="map-status-legend__tested_not_detected">■ 未検出</span></div>' + evidenceHtml(map);
     bind(host, map, panel);
   }
 
