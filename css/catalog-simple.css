@@ -88,9 +88,9 @@ body{background:#f7f9fb;color:#172235}.page-shell{max-width:1120px}.header-meta{
 
 /* Public protein lists: keep Gene symbol and Entry name independently sortable/resizable. */
 .target-table{overflow-x:auto;overflow-y:hidden}
-.target-table-head{grid-template-columns:var(--target-col-select,48px) var(--target-col-status,150px) var(--target-col-gene,130px) var(--target-col-entry,170px) var(--target-col-protein,minmax(220px,1.5fr)) var(--target-col-isoform,minmax(150px,1fr)) var(--target-col-pathway,minmax(180px,1.2fr))}
+.target-table-head{grid-template-columns:var(--target-col-select,48px) var(--target-col-status,110px) var(--target-col-gene,105px) var(--target-col-entry,170px) var(--target-col-protein,minmax(220px,1.5fr)) var(--target-col-isoform,100px) var(--target-col-pathway,minmax(180px,1.2fr))}
 .target-row{grid-template-columns:var(--target-col-select,48px) minmax(0,1fr)}
-.target-row-link{grid-template-columns:var(--target-col-status,150px) var(--target-col-gene,130px) var(--target-col-entry,170px) var(--target-col-protein,minmax(220px,1.5fr)) var(--target-col-isoform,minmax(150px,1fr)) var(--target-col-pathway,minmax(180px,1.2fr))}
+.target-row-link{grid-template-columns:var(--target-col-status,110px) var(--target-col-gene,105px) var(--target-col-entry,170px) var(--target-col-protein,minmax(220px,1.5fr)) var(--target-col-isoform,100px) var(--target-col-pathway,minmax(180px,1.2fr))}
 .target-table-head>span{position:relative;min-width:0}
 .target-column-resizer{position:absolute;z-index:3;top:-11px;right:-8px;width:10px;height:calc(100% + 22px);cursor:col-resize}
 .target-column-resizer::after{content:"";position:absolute;top:25%;right:3px;width:1px;height:50%;background:#b9c9da;opacity:.7}

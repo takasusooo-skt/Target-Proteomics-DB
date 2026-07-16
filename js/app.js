@@ -434,7 +434,7 @@
       var header = table.querySelector(":scope > .target-table-head");
       if (!header) return;
       var tableKey = table.getAttribute("aria-label") || "target-table-" + tableIndex;
-      var storageKey = "publicTargetTableColumnWidths:" + tableKey;
+      var storageKey = "publicTargetTableColumnWidths:v2:" + tableKey;
       var saved = {};
       try { saved = JSON.parse(localStorage.getItem(storageKey) || "{}"); } catch (error) { saved = {}; }
       Array.from(header.children).forEach(function (cell, index) {
@@ -705,7 +705,7 @@
     var categories = Array.from(categorySet).sort().map(function (value) { return { value: value, label: value }; });
 
     var panels = C.data.panels.map(function (panel) { return { value: panel.panel_id, label: panel.display_name_ja || panel.short_name || panel.panel_name }; });
-    ["target-status-filter", "selected-status-filter"].forEach(function (id) { populateMultiFilter(id, "測定状態", statuses); });
+    ["target-status-filter", "selected-status-filter"].forEach(function (id) { populateMultiFilter(id, "測定可否", statuses); });
     ["target-category-filter", "selected-category-filter"].forEach(function (id) { populateMultiFilter(id, "大分類", categories); });
     ["target-panel-filter", "selected-panel-filter"].forEach(function (id) { populateMultiFilter(id, "経路・機能", panels); });
   }
