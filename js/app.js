@@ -254,13 +254,13 @@
 
     byId("target-grid").innerHTML = html;
   }
-  function panelCard(panel) {
+  function panelCard(panel, anchorId) {
     var counts = panelCounts(panel);
     var nameHtml = E(panel.display_name_ja || panel.short_name || panel.panel_name);
     if (panel.display_name_en && panel.display_name_en !== panel.display_name_ja) {
       nameHtml += '<br><span class="panel-card-en" style="font-size: 19px; color: #283e56; font-weight: 700; display: block; margin-top: 5px; line-height: 1.2;">' + E(panel.display_name_en) + '</span>';
     }
-    return '<a class="catalog-card panel-card" data-panel-id="' + E(panel.panel_id) + '" href="' + panelHref(panel.panel_id) + '"><h3>' + nameHtml + '</h3><p style="margin-top: 5px;">' + E(panel.description_ja || panel.purpose || panel.description || '') + '</p><div class="status-counts" style="margin-top: 10px;">' + countHtml(counts) + '</div></a>';
+    return '<a' + (anchorId ? ' id="' + E(anchorId) + '"' : '') + ' class="catalog-card panel-card" data-panel-id="' + E(panel.panel_id) + '" href="' + panelHref(panel.panel_id) + '"><h3>' + nameHtml + '</h3><p style="margin-top: 5px;">' + E(panel.description_ja || panel.purpose || panel.description || '') + '</p><div class="status-counts" style="margin-top: 10px;">' + countHtml(counts) + '</div></a>';
   }
   function renderPanels() {
     var query = byId("panel-search").value.trim().toLowerCase();
@@ -280,7 +280,9 @@
 
     byId("panel-result-count").textContent = panels.length + " / " + C.data.panels.length;
     var topLevel = C.data.panels.filter(function (panel) { return panel.catalog_group_type === "domain"; });
-    var topBlock = topLevel.length ? '<section class="panel-group panel-group--top"><h2>大分類</h2><div id="panel-domain-items" class="catalog-grid catalog-grid--panels">' + topLevel.map(panelCard).join("") + '</div></section>' : '';
+    var jumpHost = byId("panel-domain-jumps");
+    if (jumpHost) jumpHost.innerHTML = topLevel.map(function (panel) { return '<button type="button" class="small-action" data-scroll-to="panel-domain-' + E(panel.panel_id) + '">' + E(panel.display_name_ja) + '</button>'; }).join("");
+    var topBlock = topLevel.length ? '<section class="panel-group panel-group--top"><h2>大分類</h2><div id="panel-domain-items" class="catalog-grid catalog-grid--panels">' + topLevel.map(function (panel) { return panelCard(panel, "panel-domain-" + panel.panel_id); }).join("") + '</div></section>' : '';
     var childBlocks = Array.from(groups.entries()).map(function (entry) {
       var groupName = entry[0];
       var children = entry[1];
