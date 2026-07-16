@@ -12,6 +12,7 @@ tmp/
 
 # GitHub Pages release excludes local build inputs and generated caches.
 /source_data/
+/build/
 /scripts/
 /data/reactome/
 /data/reactome_pathways/
@@ -19,4 +20,3 @@ tmp/
 /data/public_*.csv
 /data/panel_map_index.js
 /data/reactome_*.js
-
