@@ -556,7 +556,7 @@
       '<div class="detail-field"><dt>代表別名</dt><dd>' + E(target.display_aliases || "未指定") + '</dd></div>' +
       '<div class="detail-field"><dt>UniProt</dt><dd>' + E(target.canonical_uniprot_id || "未指定") + '</dd></div>' +
       (target.uniprot_entry_name ? '<div class="detail-field"><dt>Entry Name</dt><dd>' + E(target.uniprot_entry_name) + '</dd></div>' : '') +
-      '<div class="detail-field"><dt>Isoform区別</dt><dd>' + E(isoformDistinctionLabel(target)) + '（登録 ' + E(isoformsForTarget(target).length) + '件）</dd></div>' +
+      '<div class="detail-field"><dt>Isoform区別</dt><dd>' + E(isoformDistinctionLabel(target)) + '</dd></div>' +
       '<div class="detail-field"><dt>HGNC</dt><dd>' + E(target.hgnc_id || "未指定") + '</dd></div>' +
       '<div class="detail-field"><dt>NCBI Gene</dt><dd>' + E(target.ncbi_gene_id || "未指定") + '</dd></div>' +
       '<div class="detail-field"><dt>Ensembl Gene</dt><dd>' + E(target.ensembl_gene_id || "未指定") + '</dd></div>' +
