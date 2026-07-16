@@ -280,7 +280,7 @@
 
     byId("panel-result-count").textContent = panels.length + " / " + C.data.panels.length;
     var topLevel = C.data.panels.filter(function (panel) { return panel.catalog_group_type === "domain"; });
-    var topBlock = topLevel.length ? '<section id="panel-domain-groups" class="panel-group panel-group--top"><h2>大分類</h2><div class="catalog-grid catalog-grid--panels">' + topLevel.map(panelCard).join("") + '</div></section>' : '';
+    var topBlock = topLevel.length ? '<section class="panel-group panel-group--top"><h2>大分類</h2><div id="panel-domain-items" class="catalog-grid catalog-grid--panels">' + topLevel.map(panelCard).join("") + '</div></section>' : '';
     var childBlocks = Array.from(groups.entries()).map(function (entry) {
       var groupName = entry[0];
       var children = entry[1];
