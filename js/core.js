@@ -14,6 +14,12 @@
     });
   }
 
+  var legacyTargetIds = payload.legacyTargetIds || {};
+  function resolveTargetId(id) {
+    if (!id) return "";
+    return legacyTargetIds[id] || id;
+  }
+
   var tables = payload.tables || {};
   var data = {
     meta: payload.meta || {},
@@ -72,7 +78,7 @@
       .replace(/'/g, "&#39;");
   }
 
-  function targetById(id) { return targetIndex.get(id) || null; }
+  function targetById(id) { return targetIndex.get(resolveTargetId(id)) || null; }
   function panelById(id) { return panelIndex.get(id) || null; }
   function membersForPanel(id) {
     return (membersByPanel.get(id) || []).map(function (row) {
@@ -98,7 +104,7 @@
     return "candidate";
   }
   function statusLabel(value, registered) {
-    return { measured: "測定実績あり", candidate: "測定候補", not_registered: "測定例なし" }[publicState(value, registered)];
+    return { measured: "測定実績あり", candidate: "測定候補", not_registered: "登録測定系なし" }[publicState(value, registered)];
   }
   function statusSymbol(value, registered) {
     return { measured: "●", candidate: "▲", not_registered: "□" }[publicState(value, registered)];
@@ -138,7 +144,7 @@
     if (value === "panels") return { view: "panels" };
     if (value === "selected") return { view: "selected" };
     var targetMatch = value.match(/^target\/(.+)$/);
-    if (targetMatch) return { view: "target", id: decodeURIComponent(targetMatch[1]) };
+    if (targetMatch) return { view: "target", id: resolveTargetId(decodeURIComponent(targetMatch[1])) };
     var panelMatch = value.match(/^panel\/(.+)$/);
     if (panelMatch) return { view: "panel", id: decodeURIComponent(panelMatch[1]) };
     return { view: "targets" };
